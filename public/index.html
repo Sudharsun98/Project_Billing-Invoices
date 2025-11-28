@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Billing & Invoicing</title>
+    <link rel="icon"
+        href="https://www.godaddy.com/resources/wp-content/uploads/2024/11/what-is-an-invoice-featured-Oamkmo.tmp_.jpeg?size=1536x1536" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --bg: #f8f9fa;
+            --card: #ffffff;
+            --accent: #0d6efd;
+            --accent-gradient: linear-gradient(135deg, #0d6efd, #0a58ca);
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --border-color: #dee2e6;
+            --shadow: 0 6px 24px rgba(0, 0, 0, 0.07);
+            --success: #198754;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+            background: var(--bg);
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            min-height: 100vh;
+            padding: 28px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .logo {
+            width: 56px;
+            height: 56px;
+            border-radius: 10px;
+            background: var(--accent-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 6px 18px rgba(13, 110, 253, 0.2);
+            font-weight: 700;
+            font-size: 24px;
+            color: white;
+        }
+
+        h1 {
+            font-size: 22px;
+            margin: 0;
+            color: var(--text-primary);
+        }
+
+        h2,
+        h3,
+        h4 {
+            color: var(--text-primary);
+        }
+
+        p.subtitle {
+            margin: 4px 0 0;
+            color: var(--text-secondary);
+            font-size: 14px
+        }
+
+        .top-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        button.primary {
+            background: var(--accent-gradient);
+            color: #ffffff;
+            border: 0;
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(13, 110, 253, 0.2);
+            transition: all 0.2s ease;
+        }
+
+        button.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(13, 110, 253, 0.3);
+        }
+
+        button.ghost {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        button.ghost:hover {
+            background-color: rgba(0, 0, 0, 0.03);
+            border-color: #adb5bd;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 24px;
+            align-items: start;
+        }
+
+        .panel {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .products {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .card {
+            background: var(--card);
+            padding: 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            border: 1px solid var(--border-color);
+            transition: transform .2s ease, box-shadow .2s ease;
+            color: var(--text-primary);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow);
+        }
+
+        .thumb {
+            width: 68px;
+            height: 68px;
+            border-radius: 10px;
+            overflow: hidden;
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block
+        }
+
+        .meta {
+            flex: 1
+        }
+
+        .meta h3 {
+            margin: 0;
+            font-size: 15px
+        }
+
+        .meta p {
+            margin: 6px 0 0;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .price {
+            font-weight: 700;
+            color: var(--text-primary);
+            font-size: 15px
+        }
+
+        .cart-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .cart-items {
+            max-height: 420px;
+            overflow: auto;
+            padding-right: 8px;
+        }
+
+        .item-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            padding: 8px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+        }
+
+        .item-row .itm-thumb {
+            width: 56px;
+            height: 56px;
+            border-radius: 8px;
+            overflow: hidden
+        }
+
+        .item-row img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover
+        }
+
+        .item-info {
+            flex: 1
+        }
+
+        .item-info h4 {
+            margin: 0;
+            font-size: 14px
+        }
+
+        .item-info p {
+            margin: 4px 0 0;
+            color: var(--text-secondary);
+            font-size: 13px
+        }
+
+        .qty-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: var(--card);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        input:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+        }
+
+        .qty-controls input {
+            width: 56px;
+            text-align: center;
+            padding: 6px;
+        }
+
+        .small-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            padding: 8px;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer
+        }
+
+        .summary {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px dashed var(--border-color);
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+        }
+
+        .total {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 700;
+            font-size: 18px;
+            margin-top: 8px
+        }
+
+        .right-col {
+            display: flex;
+            flex-direction: column;
+            gap: 12px
+        }
+
+        .product-list {
+            margin-top: 8px;
+            max-height: 210px;
+            overflow: auto
+        }
+
+        .prod-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: var(--bg);
+            border: 1px solid var(--border-color);
+        }
+
+        .prod-row .controls button {
+            margin-left: 6px
+        }
+
+        .invoice {
+            background: white;
+            color: #000000;
+            border-radius: 8px;
+            padding: 14px;
+            margin-top: 12px;
+            font-size: 13px;
+        }
+
+        .invoice h2 {
+            margin: 0 0 6px 0;
+            color: #000000
+        }
+
+        .invoice .inv-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px
+        }
+
+        .inv-items {
+            margin-top: 8px;
+            border-top: 1px dashed #eee;
+            padding-top: 8px
+        }
+
+        .inv-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px
+        }
+
+        .muted-note {
+            color: var(--text-secondary);
+            font-size: 13px;
+            margin-top: 8px
+        }
+
+        .report-box {
+            padding: 10px;
+            border-radius: 8px;
+            background: var(--card);
+            border: 1px solid var(--border-color);
+        }
+
+        .link {
+            color: var(--accent);
+            cursor: pointer;
+            text-decoration: underline
+        }
+
+        #login-modal,
+        #logout-modal,
+        #invoice-modal,
+        #wa-modal,
+        #admin-modal,
+        #quick-report-modal,
+        #food-order-modal,
+        #type-invoice-modal,
+        #order-type-modal,
+        #drafts-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+            z-index: 200;
+        }
+
+        .login-panel,
+        .logout-panel,
+        .wa-modal-panel,
+        #admin-modal>div,
+        #quick-report-modal>div,
+        #food-order-modal>div,
+        #type-invoice-modal>div {
+            width: auto;
+            max-width: 96%;
+            background: var(--card);
+            border-radius: 12px;
+            padding: 18px;
+            border: none;
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.2);
+            color: var(--text-primary);
+        }
+
+        .login-panel {
+            width: 420px;
+        }
+
+        .logout-panel {
+            width: 360px;
+            text-align: center;
+        }
+
+        .wa-modal-panel {
+            width: 420px;
+        }
+
+        .wa-modal-panel {
+            width: 420px;
+        }
+
+        #admin-modal>div {
+            width: 860px;
+            padding: 14px;
+        }
+
+        #quick-report-modal>div,
+        #food-order-modal>div {
+            width: 420px;
+            padding: 14px;
+        }
+
+        #type-invoice-modal>div {
+            width: 680px;
+            padding: 14px;
+        }
+
+        .login-panel h2 {
+            margin: 0 0 8px 0;
+            font-size: 20px;
+        }
+
+        .login-panel p,
+        .logout-panel p {
+            margin: 0 0 12px 0;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .login-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 12px;
+        }
+
+        .logout-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        input::placeholder,
+        textarea::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.8;
+        }
+
+        .business-assistant {
+            position: fixed;
+            right: 24px;
+            bottom: 24px;
+            z-index: 200;
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            pointer-events: none;
+            font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+        }
+
+        .ba-pill {
+            background: var(--card);
+            color: var(--text-primary);
+            border-radius: 999px;
+            padding: 10px 14px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            box-shadow: var(--shadow);
+            pointer-events: auto;
+            border: 1px solid var(--border-color);
+        }
+
+        .ba-pill .ba-label {
+            font-weight: 700;
+            font-size: 14px;
+            white-space: nowrap;
+            color: var(--text-primary);
+        }
+
+        .ba-btn,
+        #up-arrow {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--accent-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 0;
+            box-shadow: 0 8px 20px rgba(13, 110, 253, 0.25);
+            color: white;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: transform .12s ease;
+        }
+
+        #up-arrow {
+            position: fixed;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 20px;
+            z-index: 250;
+            width: 56px;
+            height: 56px;
+        }
+
+
+        .ba-btn:active,
+        #up-arrow:active {
+            transform: scale(.98);
+        }
+
+        .ba-btn:active,
+        #up-arrow:active {
+            transform: scale(.98);
+        }
+
+        .ba-window {
+            width: 320px;
+            max-width: calc(100vw - 48px);
+            background: var(--card);
+            color: var(--text-primary);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            pointer-events: auto;
+            font-size: 14px;
+            border: 1px solid var(--border-color);
+        }
+
+        .ba-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: var(--bg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .ba-header .ba-head-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: var(--accent-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+        }
+
+        .ba-header .ba-head-info {
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .ba-header .ba-head-title,
+        .ba-header .ba-head-sub,
+        .ba-close-btn {
+            color: var(--text-primary);
+        }
+
+        .ba-close-btn {
+            background: transparent;
+            border: 0;
+            cursor: pointer;
+        }
+
+        .ba-messages {
+            padding: 10px;
+            height: 260px;
+            overflow: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: var(--bg);
+        }
+
+        .ba-msg {
+            max-width: 80%;
+            padding: 8px 10px;
+            border-radius: 8px;
+            line-height: 1.25;
+            font-size: 13px;
+        }
+
+        .ba-msg.user {
+            align-self: flex-end;
+            background: #cfe2ff;
+            color: var(--text-primary);
+        }
+
+        .ba-msg.bot {
+            align-self: flex-start;
+            background: #e9ecef;
+            color: var(--text-primary);
+        }
+
+        .ba-input {
+            display: flex;
+            gap: 8px;
+            padding: 10px;
+            border-top: 1px solid var(--border-color);
+            background: var(--card);
+        }
+
+        .ba-input input {
+            flex: 1;
+            padding: 10px;
+        }
+
+        .ba-input button {
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: var(--accent-gradient);
+            color: #ffffff;
+            border: 0;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .cart-items::-webkit-scrollbar,
+        .product-list::-webkit-scrollbar,
+        .ba-messages::-webkit-scrollbar {
+            height: 6px;
+            width: 6px;
+        }
+
+        .cart-items::-webkit-scrollbar-thumb,
+        .product-list::-webkit-scrollbar-thumb,
+        .ba-messages::-webkit-scrollbar-thumb {
+            background: #ced4da;
+            border-radius: 6px;
+        }
+
+        /* --- New Dashboard Styles --- */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+        }
+
+        .stat-card h4 {
+            margin: 0;
+            font-size: 15px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .stat-card p {
+            margin: 8px 0 0;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        #db-sales-chart {
+            height: 250px;
+        }
+
+        #db-recent-invoices ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        #db-recent-invoices li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 4px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 14px;
+        }
+
+        #db-recent-invoices li:last-child {
+            border-bottom: none;
+        }
+
+        /* --- End New Dashboard Styles --- */
+        /* --- End New Dashboard Styles --- */
+
+        @media (max-width:1200px) {
+            .container {
+                padding: 20px;
+            }
+
+            .products {
+                grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            }
+
+            .dashboard-grid {
+                grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            }
+        }
+
+        @media (max-width:980px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .right-col {
+                order: -1
+            }
+
+            header {
+                align-items: flex-start;
+            }
+
+            .top-actions {
+                width: 100%;
+                justify-content: flex-end;
+            }
+        }
+
+        @media (max-width:768px) {
+            body {
+                padding: 18px;
+            }
+
+            .panel {
+                padding: 16px;
+            }
+
+            .products {
+                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            }
+        }
+
+        @media (max-width:480px) {
+            body {
+                padding: 14px;
+            }
+
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .top-actions {
+                justify-content: flex-start;
+                gap: 6px;
+            }
+
+            .products {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .ba-pill {
+                display: none;
+            }
+
+            .ba-window {
+                width: calc(100vw - 32px);
+                right: 16px;
+                bottom: 80px;
+            }
+        }
+
+        /* Clickable boxes */
+        .table-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+        }
+
+        .table-box {
+            padding: 12px 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--card);
+            cursor: pointer;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .table-box:hover:not(:disabled) {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .table-box.selected {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .table-box.occupied {
+            background: #e9ecef;
+            color: var(--text-secondary);
+            cursor: not-allowed;
+            border-color: transparent;
+            text-decoration: line-through;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="brand">
+                <div class="logo">B</div>
+                <div>
+                    <h1 id="page-title">Ponit of Sale</h1>
+                    <p class="subtitle" id="page-subtitle">Manage orders, download invoices, and view reports</p>
+                </div>
+            </div>
+            <div class="top-actions">
+                <button class="ghost" onclick="showView('dashboard')">Dashboard</button>
+                <button class="ghost" onclick="showView('pos')">POS</button>
+                <button class="primary" onclick="openTypeInvoiceModal()">Place Table Order</button>
+                <button class="ghost" onclick="openDraftsModal()">Drafts</button>
+                <button class="ghost" onclick="downloadAllReports()">Export Reports</button>
+            </div>
+        </header>
+
+        <div id="dashboard-view" style="display: none;">
+            <div class="dashboard-grid">
+                <div class="panel stat-card">
+                    <h4>Today's Revenue</h4>
+                    <p id="db-today-revenue">₹0</p>
+                </div>
+                <div class="panel stat-card">
+                    <h4>Today's Invoices</h4>
+                    <p id="db-today-invoices">0</p>
+                </div>
+                <div class="panel stat-card">
+                    <h4>This Month's Revenue</h4>
+                    <p id="db-month-revenue">₹0</p>
+                </div>
+                <div class="panel stat-card">
+                    <h4>Total Products</h4>
+                    <p id="db-total-products">0</p>
+                </div>
+            </div>
+            <div class="dashboard-grid" style="margin-top: 24px; grid-template-columns: 2fr 1fr;">
+                <div class="panel">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h3 style="margin: 0;">Today's Hourly Sales</h3>
+                        <div>
+                            <button class="ghost" id="prev-hour-btn" onclick="shiftHourlySales(1)"
+                                title="Previous Hours" style="padding: 6px 10px;">&lt;</button>
+                            <button class="ghost" id="next-hour-btn" onclick="shiftHourlySales(-1)" title="Next Hours"
+                                style="padding: 6px 10px; margin-left: 4px;">&gt;</button>
+                        </div>
+                    </div>
+                    <div id="db-sales-chart">
+                        <div class="muted-note">Loading sales data...</div>
+                    </div>
+                </div>
+                <div class="panel">
+                    <h3 style="margin-top:0">Recent Invoices</h3>
+                    <div id="db-recent-invoices">
+                        <div class="muted-note">No recent invoices.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- <main class="grid"> -->
+        <main id="pos-view" class="grid" style="display: none;">
+            <section class="panel">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                    <div>
+                        <h2 style="margin:0">Products</h2>
+                        <p class="muted-note">Click a product to add it to the cart</p>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center">
+                        <input id="search" placeholder="Search product..." oninput="renderProducts()"
+                            style="width:180px;" />
+                        <button class="ghost" onclick="restoreDefaults()"
+                            title="Restore default product list">Restore</button>
+                    </div>
+                </div>
+                <div id="products" class="products">
+                    <!-- products rendered here -->
+                </div>
+            </section>
+
+            <aside>
+                <div class="right-col">
+                    <div class="panel">
+                        <div class="cart-title">
+                            <div>
+                                <h3 style="margin:0">Cart</h3>
+                                <p class="muted-note" id="cart-count">0 items</p>
+                            </div>
+                            <div style="display:flex; gap: 8px;">
+                                <button class="ghost" onclick="clearCart()">Clear</button>
+                                <!-- <button class="primary" onclick="generateInvoice()"
+                                    id="gen-invoice-btn">Invoice</button> -->
+                                <button class="primary" onclick="openOrderTypeModal('cart')"
+                                    id="gen-invoice-btn">Invoice</button>
+                            </div>
+                        </div>
+
+                        <div class="cart-items" id="cart-items">
+                            <!-- cart items -->
+                        </div>
+                        <div class="summary">
+                            <div class="summary-row"><span>Subtotal</span><span id="subtotal">₹0</span></div>
+                            <div class="summary-row"><span>Taxes</span><span>—</span></div>
+                            <div class="summary-row"><span>Discounts</span><span>—</span></div>
+                            <div class="total"><span>Total</span><span id="total">₹0</span></div>
+                        </div>
+
+                        <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px">
+                            <input id="customer-name" placeholder="Supervisor Name (Optional)"
+                                oninput="filterName(this)" />
+                            <input id="customer-phone" placeholder="Supervisor Phone (Optional)"
+                                oninput="filterPhone(this)" maxlength="10" inputmode="numeric" pattern="\d{10}" />
+                        </div>
+
+                        <div class="muted-note" style="margin-top:16px;">Invoices are stored in your assigned storage.
+                        </div>
+                    </div>
+                    <div class="panel report-box">
+                        <div style="display:flex;justify-content:space-between;align-items:center">
+                            <h3 style="margin:0">Reports</h3>
+                            <div style="display:flex;gap:8px">
+                                <button class="primary" onclick="showDailyReport()">Daily</button>
+                                <button class="primary" onclick="showMonthlyReport()">Monthly</button>
+                                <button class="ghost" onclick="viewInvoices()">Invoices</button>
+                            </div>
+                        </div>
+
+                        <div id="report-area" style="margin-top:12px">
+                            <div class="muted-note">Select a report type to view details.</div>
+                        </div>
+                    </div>
+
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="admin-modal" style="z-index: 210;">
+        <div style="padding:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+                <h3 style="margin:0">Manage Products</h3>
+                <div style="display:flex;gap:8px">
+                    <button class="ghost" onclick="closeAdmin()">Close</button>
+                    <button class="primary" onclick="showProductForm()">Add Product</button>
+                </div>
+            </div>
+            <div style="display:flex;gap:12px;margin-top:10px">
+                <div style="flex:1">
+                    <div class="product-list" id="admin-product-list"></div>
+                </div>
+                <div style="width:360px">
+                    <div id="product-form"
+                        style="display:none;padding:10px;border-radius:8px;background:var(--bg);border:1px solid var(--border-color);">
+                        <h4 id="pf-title">Add Product</h4>
+                        <div style="display:flex; flex-direction:column; gap: 8px; margin-top:8px;">
+                            <input id="pf-name" placeholder="Product name" />
+                            <input id="pf-price" placeholder="Price (INR)" type="number" />
+                            <input id="pf-img" placeholder="Image placeholder e.g. 400/320 (opt)" />
+                        </div>
+                        <div style="display:flex;gap:8px;margin-top:10px">
+                            <button class="primary" onclick="saveProduct()">Save</button>
+                            <button class="ghost" onclick="hideProductForm()">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="admin-note" class="muted-note" style="margin-top:8px;">
+                Products are stored locally in your browser. Use Restore to go back to defaults.
+            </div>
+        </div>
+    </div>
+
+    <div id="invoice-modal" style="z-index: 220;">
+        <div style="width:860px;max-width:98%;max-height:90vh;overflow:auto;background:transparent;padding:10px">
+            <div style="background:white;border-radius:8px;padding:14px;color:#111">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                    <h3 style="margin:0">Invoice Preview</h3>
+                    <div>
+                        <button class="ghost" onclick="closeInvoiceModal()" style="margin-right:8px">Close</button>
+                        <button class="primary" onclick="printInvoice()">Print PDF</button>
+                        <button class="primary" onclick="exportInvoicePDF()" style="margin-left:8px">Download</button>
+                        <button class="primary" onclick="openWAModal()" style="margin-left:8px">Share PDF</button>
+                    </div>
+                </div>
+                <div id="invoice-preview" class="invoice">
+                    <!-- invoice content generated dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="wa-modal" style="z-index: 230;">
+        <div class="wa-modal-panel">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <h4 style="margin:0;">Share Invoice</h4>
+                <button class="ghost" onclick="closeWAModal()">Close</button>
+            </div>
+            <div style="margin-top:6px;color:var(--text-secondary);font-size:13px">
+                Enter recipient's 10-digit phone number.
+            </div>
+            <input id="wa-phone-input" style="margin-top:8px;" placeholder="10-digit phone number" maxlength="10"
+                inputmode="numeric" oninput="filterPhone(this)" />
+            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+                <button class="ghost" onclick="closeWAModal()">Cancel</button>
+                <button class="primary" id="wa-send-btn" onclick="sendPdfToWhatsapp()">Send PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="quick-report-modal" style="z-index: 225;">
+        <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <h4 style="margin:0;">Experience it now</h4>
+                <button class="ghost" onclick="closeQuickReport()">Close</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px; margin-top: 12px;">
+                <button class="primary" onclick="openTypeInvoiceModal()">Click to generate invoice</button>
+            </div>
+            <div id="quick-report-result" style="margin-top:12px;color:var(--text-secondary);font-size:14px"></div>
+        </div>
+    </div>
+
+    <div id="food-order-modal" style="z-index: 225;">
+        <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <h4 style="margin:0;">Online Food Portals</h4>
+                <button class="ghost" onclick="closeFoodOrder()">Close</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px; margin-top: 12px;">
+                <button class="ghost" onclick="window.openZomato()">Zomato</button>
+                <button class="ghost" onclick="window.openSwiggy()">Swiggy</button>
+            </div>
+            <div id="food-order-result" style="margin-top:12px;color:var(--text-secondary);font-size:14px"></div>
+        </div>
+    </div>
+
+    <div id="login-modal" aria-hidden="true" style="z-index: 300;">
+        <div class="login-panel" role="dialog" aria-label="Login">
+            <h2>Welcome Back</h2>
+            <p>Please sign in to access the application.</p>
+            <div style="display:flex; flex-direction:column; gap: 12px; margin-top: 16px;">
+                <div>
+                    <label for="login-username" style="font-size:13px;color:var(--text-secondary)">Username</label>
+                    <input id="login-username" placeholder="Enter username" autocomplete="username"
+                        style="margin-top: 4px;" />
+                </div>
+                <div>
+                    <label for="login-password" style="font-size:13px;color:var(--text-secondary)">Password</label>
+                    <input id="login-password" type="password" placeholder="Enter password"
+                        autocomplete="current-password" style="margin-top: 4px;" />
+                </div>
+            </div>
+            <div class="login-actions">
+                <button class="ghost" onclick="clearLoginInputs()">Clear</button>
+                <button class="primary" onclick="attemptLogin()">Login</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="logout-modal" aria-hidden="true" style="z-index: 310;">
+        <div class="logout-panel">
+            <h3 style="margin:0">Confirm Logout</h3>
+            <p>Do you want to logout and return to the login page?</p>
+            <div class="logout-actions">
+                <button class="ghost" onclick="closeLogoutPopup()">Cancel</button>
+                <button class="primary" onclick="confirmLogout()">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="type-invoice-modal" style="z-index: 235;">
+        <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <h4 style="margin:0;">Place Your Order</h4>
+                <button class="ghost" onclick="closeTypeInvoiceModal()">Close</button>
+            </div>
+            <div style="margin-top:8px">
+                <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">
+                    Enter items as: <strong>Product Name, Quantity</strong> (one per line).
+                </div>
+                <!-- <textarea id="type-invoice-textarea" rows="8" placeholder="e.g. Veg Fried Rice, 2&#10;Ghee Roti, 4" -->
+                <textarea id="type-invoice-textarea" rows="8" placeholder="e.g. Veg Fried Rice, 2"
+                    style="resize:vertical"></textarea>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+                    <div style="color:var(--text-secondary);font-size:13px">Lines: <span id="type-lines-count">0</span>
+                    </div>
+                </div>
+                <div id="type-validate-result" style="margin-top:12px;color:var(--text-secondary);font-size:13px"></div>
+                <div id="type-actions-area" style="margin-top:12px;display:none">
+                    <!-- <div style="display: flex; flex-direction: column; max-width: 350px;">-->
+                    <!-- <div style="display: flex; flex-direction: column; max-width: 350px;">
+                        <input id="type-table-number" placeholder="Table Number (Required)"
+                            oninput="this.value = this.value.replace(/[^A-Za-z0-9\s-]/g, '')"
+                            style="margin-bottom: 8px;" />
+                        <input id="type-supervisor-name" placeholder="Supervisor Name (Optional)"
+                            oninput="filterName(this)" style="margin-bottom: 8px;" />
+                        <input id="type-supervisor-phone" placeholder="Supervisor Phone (Optional)"
+                            oninput="filterPhone(this)" maxlength="10" inputmode="numeric" /> -->
+                    <div style="display: flex; flex-direction: column; max-width: 350px;">
+                        <label style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">Table Number
+                            (Required)</label>
+                        <div id="table-number-grid" class="table-grid" style="margin-bottom: 8px;">
+                            <!-- Clickable table boxes will be generated here -->
+                        </div>
+                        <input id="type-supervisor-name" placeholder="Supervisor Name (Optional)"
+                            oninput="filterName(this)" style="margin-bottom: 8px;" />
+                        <input id="type-supervisor-phone" placeholder="Supervisor Phone (Optional)"
+                            oninput="filterPhone(this)" maxlength="10" inputmode="numeric" />
+                        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+                            <button class="ghost" onclick="saveDraftFromTypeInvoice()">Save as Draft</button>
+                            <!-- <button class="primary" onclick="finalizeTypeInvoice()">Generate Invoice</button> -->
+                            <button class="primary" onclick="openOrderTypeModal('typed')">Generate Invoice</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="drafts-modal" style="z-index: 240;">
+        <div style="width: 720px; max-width: 95%; background: var(--card); border-radius: 12px; padding: 14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <h4 style="margin:0;">Saved Drafts</h4>
+                <button class="ghost" onclick="closeDraftsModal()">Close</button>
+            </div>
+            <div id="drafts-list-container" style="max-height: 60vh; overflow-y: auto; padding-right: 6px;">
+                <!-- Drafts will be rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Chatbot widget -->
+    <div class="business-assistant" aria-hidden="false">
+        <div class="ba-pill" title="Business Assistant">
+            <div
+                style="width:36px;height:36px;border-radius:8px;background:var(--accent-gradient);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">
+                B
+            </div>
+            <div class="ba-label">Business Assistant</div>
+        </div>
+
+        <button id="ba-toggle" class="ba-btn" aria-expanded="false" aria-label="Open Business Assistant">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+                xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10z" fill="white" />
+                <circle cx="8.5" cy="10.5" r="1.25" fill="#0d6efd" />
+                <circle cx="12" cy="10.5" r="1.25" fill="#0d6efd" />
+                <circle cx="15.5" cy="10.5" r="1.25" fill="#0d6efd" />
+            </svg>
+        </button>
+
+        <div id="ba-window" class="ba-window" style="display:none;" role="dialog" aria-label="Business Assistant chat">
+            <div class="ba-header">
+                <div class="ba-head-icon">BA</div>
+                <div class="ba-head-info">
+                    <div class="ba-head-title">Business Assistant</div>
+                    <div class="ba-head-sub">How can I assist you?</div>
+                </div>
+                <button id="ba-close" class="ba-close-btn" title="Close chat">✕</button>
+            </div>
+            <div id="ba-messages" class="ba-messages" aria-live="polite"></div>
+            <div class="ba-input">
+                <input id="ba-input" type="text" placeholder="Enter your invoice here..." aria-label="Type a message" />
+                <button id="ba-send">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Up arrow button -->
+    <button id="up-arrow" title="Options" style="display:none;" onclick="showLogoutPopup()">↑</button>
+
+    <!-- Add this new modal for selecting order type -->
+    <div id="order-type-modal" style="z-index: 250;">
+        <div class="login-panel" style="width: 400px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <h4 style="margin:0;">Select Order Type</h4>
+                <button class="ghost" onclick="closeOrderTypeModal()">Close</button>
+            </div>
+            <p style="font-size: 13px; color: var(--text-secondary);">Please select the type of order to proceed with
+                invoice generation.</p>
+            <div style="display:flex; flex-direction:column; gap:10px; margin-top:16px;">
+                <button class="primary" onclick="confirmOrderType('Delivery')">Delivery</button>
+                <button class="primary" onclick="confirmOrderType('Dine in')">Dine in</button>
+                <button class="primary" onclick="confirmOrderType('Take Away')">Take Away</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- External JS file -->
+    <script src="app.js"></script>
+</body>
+
+</html>
