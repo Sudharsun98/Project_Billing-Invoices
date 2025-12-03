@@ -882,8 +882,8 @@ function closeWAModal() {
     if (modal) modal.style.display = 'none';
 }
 async function sendPdfToWhatsapp() {
-    const phone = (document.getElementById('wa-phone-input') ? (document.getElementById('wa-phone-input').value || '') : '').replace(/\D/g, '').slice(0, 10);
-    if (!phone || phone.length !== 10) return alert('Please enter a valid 10-digit phone number');
+    // const phone = (document.getElementById('wa-phone-input') ? (document.getElementById('wa-phone-input').value || '') : '').replace(/\D/g, '').slice(0, 10);
+    // if (!phone || phone.length !== 10) return alert('Please enter a valid 10-digit phone number');
     const el = document.getElementById('invoice-preview');
     if (!el) return alert('No invoice to send');
     const sendBtn = document.getElementById('wa-send-btn');
