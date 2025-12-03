@@ -1047,7 +1047,9 @@
                         <button class="ghost" onclick="closeInvoiceModal()" style="margin-right:8px">Close</button>
                         <button class="primary" onclick="printInvoice()">Print PDF</button>
                         <button class="primary" onclick="exportInvoicePDF()" style="margin-left:8px">Download</button>
-                        <button class="primary" onclick="openWAModal()" style="margin-left:8px">Share PDF</button>
+                        <!-- <button class="primary" onclick="openWAModal()" style="margin-left:8px">Share PDF</button> -->
+                        <button class="primary" id="wa-send-btn" onclick="sendPdfToWhatsapp()"
+                            style="margin-left:8px">Share PDF</button>
                     </div>
                 </div>
                 <div id="invoice-preview" class="invoice">
