@@ -1,3 +1,17 @@
+// Batch-correct with controlled concurrency
+async function batchCorrectNames(names, concurrency = 3) {
+    if (!Array.isArray(names) || names.length === 0) return {};
+    const uniq = Array.from(new Set(names.map(n => (n || '').trim()).filter(Boolean)));
+    const results = {};
+    for (let i = 0; i < uniq.length; i += concurrency) {
+        const batch = uniq.slice(i, i + concurrency);
+        const promises = batch.map(n => aiCorrectName(n).then(c => ({ n, c })).catch(() => ({ n, c: n })));
+        const resolved = await Promise.all(promises);
+        for (const r of resolved) results[r.n] = r.c || r.n;
+    }
+    return results;
+}
+
 // Utilities and helpers
 function uid() { return Math.random().toString(36).slice(2, 10); }
 function save(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* ignore */ } }
@@ -45,32 +59,71 @@ function debounce(fn, wait) {
     };
 }
 
-// Batch-correct with controlled concurrency
-async function batchCorrectNames(names, concurrency = 3) {
-    if (!Array.isArray(names) || names.length === 0) return {};
-    const uniq = Array.from(new Set(names.map(n => (n || '').trim()).filter(Boolean)));
-    const results = {};
-    for (let i = 0; i < uniq.length; i += concurrency) {
-        const batch = uniq.slice(i, i + concurrency);
-        const promises = batch.map(n => aiCorrectName(n).then(c => ({ n, c })).catch(() => ({ n, c: n })));
-        const resolved = await Promise.all(promises);
-        for (const r of resolved) results[r.n] = r.c || r.n;
-        // await new Promise(r => setTimeout(r, 120));
+// Fetch invoices from server and populate local invoices array
+async function loadInvoicesFromServer() {
+    try {
+        const res = await fetch('/api/invoices?limit=1000');
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && Array.isArray(data.invoices)) {
+            invoices = data.invoices.map(inv => {
+                return {
+                    id: inv.invoiceId || inv.id,
+                    invoiceId: inv.invoiceId || inv.id,
+                    date: inv.date || inv.createdAt,
+                    customerName: inv.customerName,
+                    customerPhone: inv.customerPhone,
+                    items: inv.items || [],
+                    total: inv.total,
+                    orderType: inv.orderType || 'N/A',
+                    paymentType: inv.paymentType || 'N/A'
+                };
+            });
+            window.invoices = invoices;
+        } else {
+            console.warn('Failed to load invoices from server', data);
+        }
+    } catch (err) {
+        console.warn('Error loading invoices from server', err);
     }
-    return results;
+}
+
+async function loadDraftsFromServer() {
+    try {
+        const res = await fetch('/api/drafts');
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && Array.isArray(data.drafts)) {
+            drafts = data.drafts.map(d => ({
+                id: d.draftId,
+                draftId: d.draftId,
+                tableNumber: d.tableNumber,
+                text: d.text,
+                customerName: d.customerName,
+                customerPhone: d.customerPhone,
+                lines: d.lines,
+                createdAt: d.createdAt,
+                updatedAt: d.updatedAt
+            }));
+            window.drafts = drafts;
+        } else {
+            console.warn('Failed to load drafts from server', data);
+        }
+    } catch (err) {
+        console.warn('Error loading drafts from server', err);
+    }
 }
 
 // Basic app state stored in localStorage
 const DEFAULT_PRODUCTS = [
-    { id: uid(), name: "Black forest cake", price: 55, img: "https://www.alsothecrumbsplease.com/wp-content/uploads/2019/07/Black-Forest-Cake-12.jpg" },
-    { id: uid(), name: "White forest cake", price: 70, img: "https://www.alsothecrumbsplease.com/wp-content/uploads/2018/04/Hungarian-Esterhazy-Torte-2.jpg" },
-    { id: uid(), name: "Choco lava cake", price: 65, img: "https://www.alsothecrumbsplease.com/wp-content/uploads/2019/01/Mini-Chocolate-Cakes-Recipe-2.jpg" },
-    { id: uid(), name: "Motichur laddu (250 g)", price: 100, img: "https://bombaysweets.in/cdn/shop/products/kesar_laddu.png?v=1666083993&width=823" },
-    { id: uid(), name: "SPL Mixture (250 g)", price: 70, img: "https://baanali.in/cdn/shop/products/Mixture.png?v=1674836238" },
-    { id: uid(), name: "Kara Sevu (250 g)", price: 100, img: "https://sweetkadai.com/cdn/shop/files/sattur-kara-sev-2.jpg?v=1754561782" },
+    // { id: uid(), name: "Black forest cake", price: 55, img: "https://www.alsothecrumbsplease.com/wp-content/uploads/2019/07/Black-Forest-Cake-12.jpg" },
+    // { id: uid(), name: "White forest cake", price: 70, img: "https://www.alsothecrumbsplease.com/wp-content/uploads/2018/04/Hungarian-Esterhazy-Torte-2.jpg" },
+    // { id: uid(), name: "Choco lava cake", price: 65, img: "https://www.alsothecrumbsplease.com/wp-content/uploads/2019/01/Mini-Chocolate-Cakes-Recipe-2.jpg" },
+    // { id: uid(), name: "Motichur laddu (250 g)", price: 100, img: "https://bombaysweets.in/cdn/shop/products/kesar_laddu.png?v=1666083993&width=823" },
+    // { id: uid(), name: "SPL Mixture (250 g)", price: 70, img: "https://baanali.in/cdn/shop/products/Mixture.png?v=1674836238" },
+    // { id: uid(), name: "Kara Sevu (250 g)", price: 100, img: "https://sweetkadai.com/cdn/shop/files/sattur-kara-sev-2.jpg?v=1754561782" },
     { id: uid(), name: "Veg Fried Rice", price: 100, img: "https://bisarga.com/wp-content/uploads/2021/08/Vegetables-Fried-Rice.jpg" },
     { id: uid(), name: "Panner 65 (half)", price: 150, img: "https://shrisangeethasrestaurant.com/cdn/shop/files/Paneer65_ef79692a-9b14-4a4e-b03f-f12c9c9c0e4a.webp?v=1745567584" },
-    { id: uid(), name: "Ghee Roti", price: 70, img: "https://media.istockphoto.com/id/1150376593/photo/bread-tandoori-indian-cuisine.jpg?s=612x612&w=0&k=20&c=GGT5LN7G4zLhJTEnP_KcyvYuayi8f1nJcvQwvmj0rCM=" }, { id: uid(), name: "Paratha", price: 40, img: "https://i.pinimg.com/736x/3b/cb/96/3bcb9685d88bb1060d30716186d422af.jpg" },
+    { id: uid(), name: "Ghee Roti", price: 70, img: "https://media.istockphoto.com/id/1150376593/photo/bread-tandoori-indian-cuisine.jpg?s=612x612&w=0&k=20&c=GGT5LN7G4zLhJTEnP_KcyvYuayi8f1nJcvQwvmj0rCM=" },
+    { id: uid(), name: "Paratha", price: 40, img: "https://i.pinimg.com/736x/3b/cb/96/3bcb9685d88bb1060d30716186d422af.jpg" },
     { id: uid(), name: "Mushroom Masala", price: 180, img: "https://www.palatesdesire.com/wp-content/uploads/2020/03/Easy_mushroom_masala@palates_desire-1024x683.jpg" },
     { id: uid(), name: "Chapathi", price: 40, img: "https://t3.ftcdn.net/jpg/04/44/43/86/360_F_444438681_2rUvqAOQZ3BwxEHlfrEneWpd26XFrt4P.jpg" },
 ];
@@ -80,7 +133,9 @@ let invoices = [];
 let drafts = [];
 let currentView = 'dashboard';
 let _orderContext = null;
+let _selectedOrderType = null;
 let hourlyChartOffset = 0;
+let currentChartType = 'bar';
 const HOURLY_CHART_WINDOW_SIZE = 6;
 
 function showView(viewName) {
@@ -95,10 +150,10 @@ function showView(viewName) {
         if (titleEl) titleEl.textContent = 'Dashboard';
         if (subtitleEl) subtitleEl.textContent = 'Overview of your business performance';
         currentView = 'dashboard';
-        renderDashboard(); // Re-render every time it's shown
-    } else { // 'pos' or default
+        renderDashboard();
+    } else {
         if (dashboardView) dashboardView.style.display = 'none';
-        if (posView) posView.style.display = 'grid'; // It's a grid
+        if (posView) posView.style.display = 'grid';
         if (titleEl) titleEl.textContent = 'Point of Sale';
         if (subtitleEl) subtitleEl.textContent = 'Manage orders, download invoices, and view reports';
         currentView = 'pos';
@@ -115,15 +170,35 @@ function getCurrentMonthInvoices() {
     });
 }
 
+function getTodayInvoices() {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    return (invoices || []).filter(inv => {
+        if (!inv.date) return false;
+        const t = new Date(inv.date);
+        return t >= start && t < end;
+    });
+}
+
+function getYesterdayInvoices() {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return (invoices || []).filter(inv => {
+        const t = new Date(inv.date);
+        return t >= start && t < end;
+    });
+}
+
 function getHourlySalesData(windowSize = 6, offset = 0) {
-    // First, aggregate all 24 hours of data for today
     const hourlyData = Array(24).fill(0);
     const todayInvoices = getTodayInvoices();
     for (const inv of todayInvoices) {
         if (!inv.date) continue;
         try {
             const invDate = new Date(inv.date);
-            const hour = invDate.getHours(); // Returns 0-23
+            const hour = invDate.getHours();
             if (hour >= 0 && hour < 24) {
                 hourlyData[hour] += inv.total || 0;
             }
@@ -134,30 +209,23 @@ function getHourlySalesData(windowSize = 6, offset = 0) {
 
     const now = new Date();
     const currentHour = now.getHours();
-
-    // MODIFIED: Adjust start hour based on offset
     const startHour = currentHour - (windowSize - 1) - (offset * windowSize);
 
     const labels = [];
     const data = [];
 
-    // Helper to format an hour (0-23) into a 12-hour string like "1pm"
     const formatHour12 = (h) => {
-        const hour = (h + 24) % 24; // Handle negative hour values for previous day
+        const hour = (h + 24) % 24;
         const hour12 = hour % 12 === 0 ? 12 : hour % 12;
         const suffix = hour < 12 ? 'am' : 'pm';
         return `${hour12}${suffix}`;
     };
 
-    // Build the labels and data for the specified window
     for (let i = 0; i < windowSize; i++) {
         const hour = startHour + i;
         const nextHour = hour + 1;
-        // Create the label in the format "1pm to 2pm"
         const label = `${formatHour12(hour)} to ${formatHour12(nextHour)}`;
         labels.push(label);
-
-        // Get the corresponding sales data for the hour
         const dataIndex = (hour + 24) % 24;
         data.push(hourlyData[dataIndex]);
     }
@@ -171,7 +239,7 @@ function getWeeklySalesData() {
     for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
-        const dayKey = d.toISOString().split('T')[0]; // YYYY-MM-DD
+        const dayKey = d.toISOString().split('T')[0];
         labels.push(d.toLocaleDateString('en-US', { weekday: 'short' }));
         salesByDay[dayKey] = 0;
     }
@@ -189,72 +257,206 @@ function getWeeklySalesData() {
     return { labels, data };
 }
 
+// Change chart type function
+function changeChartType(type) {
+    currentChartType = type;
+
+    // Update button states
+    document.querySelectorAll('.chart-type-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    const activeBtn = document.querySelector(`.chart-type-btn[data-chart-type="${type}"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    // Re-render chart
+    renderSalesChart();
+}
+
+// Main chart rendering function
 function renderSalesChart() {
     const container = document.getElementById('db-sales-chart');
     if (!container) return;
 
-    // MODIFIED: Use the state variables
     const { labels, data } = getHourlySalesData(HOURLY_CHART_WINDOW_SIZE, hourlyChartOffset);
     const totalSales = data.reduce((s, v) => s + v, 0);
 
     if (totalSales === 0) {
-        container.innerHTML = '<div class="muted-note">No sales data available for the last 4 hours.</div>';
+        container.innerHTML = '<div class="muted-note">No sales data available for the selected time range.</div>';
         return;
     }
-    const maxSale = Math.max(...data, 1); // Avoid division by zero
 
-    let chartHtml = '<div style="display:flex;height:100%;align-items:flex-end;justify-content:space-around;gap:20px;border-left:1px solid #eee;border-bottom:1px solid #eee;padding-left:8px;padding-top:24px;">';
+    // Render based on chart type
+    if (currentChartType === 'bar') {
+        renderBarChart(container, labels, data);
+    } else if (currentChartType === 'line') {
+        renderLineChart(container, labels, data);
+    } else if (currentChartType === 'pie') {
+        renderPieChart(container, labels, data);
+    }
+
+    // Update navigation buttons
+    const prevBtn = document.getElementById('prev-hour-btn');
+    const nextBtn = document.getElementById('next-hour-btn');
+    if (prevBtn && nextBtn) {
+        nextBtn.disabled = hourlyChartOffset <= 0;
+        const maxOffset = Math.floor(24 / HOURLY_CHART_WINDOW_SIZE) - 1;
+        prevBtn.disabled = hourlyChartOffset >= maxOffset;
+    }
+}
+
+// Bar chart renderer with reduced bar width
+function renderBarChart(container, labels, data) {
+    const maxSale = Math.max(...data, 1);
+    let chartHtml = '<div style="display:flex;height:300px;align-items:flex-end;justify-content:space-around;gap:30px;border-left:1px solid #eee;border-bottom:1px solid #eee;padding-left:8px;padding-top:24px;">';
 
     for (let i = 0; i < labels.length; i++) {
         const value = data[i];
         const label = labels[i];
         const heightPercent = (value / maxSale) * 100;
         chartHtml += `
-            <div style="flex:1;text-align:center;display:flex;flex-direction:column;justify-content:flex-end;height:100%;">
+            <div style="flex:1;text-align:center;display:flex;flex-direction:column;justify-content:flex-end;height:100%;align-items:center;">
                 <div style="font-size:12px;color:var(--text-secondary);white-space:nowrap;margin-bottom:4px;opacity:${value > 0 ? 1 : 0};">₹${Math.round(value)}</div>
-                <div title="${label}: ₹${value.toFixed(2)}" style="height:${heightPercent}%;background:var(--accent-gradient);border-radius:4px 4px 0 0;transition:height 0.5s ease-out;"></div>
-                <div style="font-size:12px;color:var(--text-primary);margin-top:6px;padding-top:4px;white-space:nowrap;">${label}</div>
+                <div title="${label}: ₹${value.toFixed(2)}" style="width:40px;height:${heightPercent}%;background:var(--accent-gradient);border-radius:4px 4px 0 0;transition:height 0.5s ease-out;"></div>
+                <div style="font-size:11px;color:var(--text-primary);margin-top:6px;padding-top:4px;white-space:nowrap;">${label}</div>
             </div>
         `;
     }
-
     chartHtml += '</div>';
     container.innerHTML = chartHtml;
-
-    // --- NEW: Add logic to enable/disable arrow buttons ---
-    const prevBtn = document.getElementById('prev-hour-btn');
-    const nextBtn = document.getElementById('next-hour-btn');
-    if (prevBtn && nextBtn) {
-        // "Next" button moves to more recent times (decreases offset)
-        nextBtn.disabled = hourlyChartOffset <= 0;
-
-        // "Prev" button moves to earlier times (increases offset)
-        const maxOffset = Math.floor(24 / HOURLY_CHART_WINDOW_SIZE) - 1;
-        prevBtn.disabled = hourlyChartOffset >= maxOffset;
-    }
 }
 
-function renderRecentInvoices() {
-    const container = document.getElementById('db-recent-invoices');
-    if (!container) return;
+// Line chart renderer
+// Line chart renderer
+function renderLineChart(container, labels, data) {
+    const maxSale = Math.max(...data, 1);
+    const chartHeight = 300;
+    const chartWidth = container.offsetWidth || 600;
+    const padding = 40;
+    const plotWidth = chartWidth - padding * 2;
+    const plotHeight = chartHeight - padding * 2;
 
-    const recent = (invoices || []).slice().reverse().slice(0, 5);
-    if (!recent.length) {
-        container.innerHTML = '<div class="muted-note">No recent invoices found.</div>';
+    let points = [];
+    for (let i = 0; i < data.length; i++) {
+        const x = padding + (plotWidth / (data.length - 1)) * i;
+        const y = padding + plotHeight - (data[i] / maxSale) * plotHeight;
+        points.push(`${x},${y}`);
+    }
+    const pathData = 'M ' + points.join(' L ');
+
+    let chartHtml = `
+        <svg width="100%" height="${chartHeight}" style="display:block;">
+            <!-- Grid lines -->
+            ${Array.from({ length: 5 }, (_, i) => {
+        const y = padding + (plotHeight / 4) * i;
+        return `<line x1="${padding}" y1="${y}" x2="${chartWidth - padding}" y2="${y}" stroke="#eee" stroke-width="1"/>`;
+    }).join('')}
+            
+            <!-- Gradients -->
+            <defs>
+                <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" style="stop-color:#C81E3A;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#A01528;stop-opacity:1" />
+                </linearGradient>
+                <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" style="stop-color:#C81E3A;stop-opacity:0.5" />
+                    <stop offset="100%" style="stop-color:#C81E3A;stop-opacity:0" />
+                </linearGradient>
+            </defs>
+            
+            <!-- Area under line -->
+            <polygon points="${padding},${padding + plotHeight} ${pathData.substring(2)} ${chartWidth - padding},${padding + plotHeight}" fill="url(#areaGradient)" opacity="0.2"/>
+            
+            <!-- Line -->
+            <polyline points="${pathData.substring(2)}" fill="none" stroke="url(#lineGradient)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            
+            <!-- Data points -->
+            ${points.map((point, i) => {
+        const [x, y] = point.split(',');
+        return `
+                    <circle cx="${x}" cy="${y}" r="5" fill="white" stroke="#C81E3A" stroke-width="2">
+                        <title>${labels[i]}: ₹${data[i].toFixed(2)}</title>
+                    </circle>
+                `;
+    }).join('')}
+            
+            <!-- Labels -->
+            ${labels.map((label, i) => {
+        const x = padding + (plotWidth / (data.length - 1)) * i;
+        return `<text x="${x}" y="${chartHeight - 10}" text-anchor="middle" font-size="11" fill="var(--text-primary)">${label}</text>`;
+    }).join('')}
+        </svg>
+    `;
+    container.innerHTML = chartHtml;
+}
+
+// Pie chart renderer
+// Pie chart renderer
+function renderPieChart(container, labels, data) {
+    const total = data.reduce((s, v) => s + v, 0);
+    if (total === 0) {
+        container.innerHTML = '<div class="muted-note">No data to display</div>';
         return;
     }
 
-    let html = '<ul>';
-    for (const inv of recent) {
-        html += `
-            <li>
-                <span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(inv.id)}">${escapeHtml(inv.customerName || inv.id)}</span>
-                <strong style="margin-left:12px;">₹${inv.total}</strong>
-            </li>
-        `;
+    const chartSize = 300;
+    const radius = 100;
+    const centerX = chartSize / 2;
+    const centerY = chartSize / 2;
+
+    const colors = [
+        '#C81E3A', '#E63946', '#F77F00', '#FCBF49', '#06A77D', '#118AB2'
+    ];
+
+    let currentAngle = -90;
+    let slices = [];
+    let legends = [];
+
+    for (let i = 0; i < data.length; i++) {
+        const value = data[i];
+        if (value === 0) continue;
+
+        const percentage = (value / total) * 100;
+        const sliceAngle = (value / total) * 360;
+        const endAngle = currentAngle + sliceAngle;
+
+        const startX = centerX + radius * Math.cos((currentAngle * Math.PI) / 180);
+        const startY = centerY + radius * Math.sin((currentAngle * Math.PI) / 180);
+        const endX = centerX + radius * Math.cos((endAngle * Math.PI) / 180);
+        const endY = centerY + radius * Math.sin((endAngle * Math.PI) / 180);
+
+        const largeArc = sliceAngle > 180 ? 1 : 0;
+        const pathData = `M ${centerX} ${centerY} L ${startX} ${startY} A ${radius} ${radius} 0 ${largeArc} 1 ${endX} ${endY} Z`;
+
+        slices.push(`
+            <path d="${pathData}" fill="${colors[i % colors.length]}" stroke="white" stroke-width="2" opacity="0.9">
+                <title>${labels[i]}: ₹${value.toFixed(2)} (${percentage.toFixed(1)}%)</title>
+            </path>
+        `);
+
+        legends.push(`
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                <div style="width:16px;height:16px;border-radius:3px;background:${colors[i % colors.length]};"></div>
+                <div style="flex:1;font-size:13px;">${labels[i]}</div>
+                <div style="font-weight:600;">₹${Math.round(value)}</div>
+                <div style="font-size:12px;color:var(--text-secondary);">${percentage.toFixed(1)}%</div>
+            </div>
+        `);
+
+        currentAngle = endAngle;
     }
-    html += '</ul>';
-    container.innerHTML = html;
+
+    const chartHtml = `
+        <div style="display:flex;align-items:center;justify-content:space-around;gap:24px;padding:20px;">
+            <svg width="${chartSize}" height="${chartSize}" style="filter:drop-shadow(0 4px 12px rgba(0,0,0,0.1));">
+                ${slices.join('')}
+            </svg>
+            <div style="flex:1;max-width:250px;">
+                <div style="font-weight:600;margin-bottom:12px;color:var(--text-primary);">Sales Breakdown</div>
+                ${legends.join('')}
+            </div>
+        </div>
+    `;
+    container.innerHTML = chartHtml;
 }
 
 function renderDashboard() {
@@ -273,10 +475,9 @@ function renderDashboard() {
     document.getElementById('db-total-products').textContent = productCount;
 
     renderSalesChart();
-    renderRecentInvoices();
 }
 
-// New: Environment loader
+// Login / Logout logic
 window._ENV = { ADMIN_USER: 'admin', ADMIN_PASS: 'admin' };
 async function fetchEnvFile() {
     try {
@@ -298,7 +499,82 @@ async function fetchEnvFile() {
     }
 }
 
-// Login / Logout logic
+let editingProductId = null;
+
+function showProductForm() {
+    editingProductId = null;
+    const form = document.getElementById('product-form');
+    if (!form) return;
+    form.style.display = 'block';
+    const title = document.getElementById('pf-title');
+    if (title) title.innerText = 'Add Product';
+    const name = document.getElementById('pf-name');
+    const price = document.getElementById('pf-price');
+    const img = document.getElementById('pf-img');
+    if (name) name.value = '';
+    if (price) price.value = '';
+    if (img) img.value = '';
+}
+
+function hideProductForm() { const f = document.getElementById('product-form'); if (f) f.style.display = 'none'; }
+
+function saveProduct() {
+    const nameEl = document.getElementById('pf-name');
+    const priceEl = document.getElementById('pf-price');
+    const imgInputEl = document.getElementById('pf-img');
+    const name = nameEl ? nameEl.value.trim() : '';
+    const price = priceEl ? parseFloat(priceEl.value) : NaN;
+    const imgInput = imgInputEl ? imgInputEl.value.trim() : '';
+
+    if (!name || !price || isNaN(price)) return alert('Please enter valid product name and price');
+
+    const img = imgInput ? `/api/placeholder/${imgInput}` : '/api/placeholder/300/220';
+    if (editingProductId) {
+        const p = products.find(x => x.id === editingProductId);
+        if (p) { p.name = name; p.price = price; p.img = img; }
+    } else {
+        products.push({ id: uid(), name, price, img });
+    }
+    save('bb_products', products);
+    renderAdminList();
+    renderProducts();
+    hideProductForm();
+}
+
+function editProduct(id) {
+    const p = products.find(x => x.id === id);
+    if (!p) return;
+    editingProductId = id;
+    const form = document.getElementById('product-form');
+    if (!form) return;
+    form.style.display = 'block';
+    const title = document.getElementById('pf-title');
+    if (title) title.innerText = 'Edit Product';
+    const name = document.getElementById('pf-name');
+    const price = document.getElementById('pf-price');
+    const img = document.getElementById('pf-img');
+    if (name) name.value = p.name;
+    if (price) price.value = p.price;
+    const iparts = (p.img || '').split('/api/placeholder/');
+    if (img) img.value = iparts[1] || '';
+}
+
+function deleteProduct(id) {
+    if (!confirm('Delete this product?')) return;
+    products = products.filter(p => p.id !== id);
+    save('bb_products', products);
+    renderAdminList();
+    renderProducts();
+}
+
+function restoreDefaults() {
+    if (!confirm('Do you want to restore the default product list?')) return;
+    products = DEFAULT_PRODUCTS.slice();
+    save('bb_products', products);
+    renderProducts();
+    renderAdminList();
+}
+
 function showLoginModal() {
     const modal = document.getElementById('login-modal');
     if (!modal) return;
@@ -307,6 +583,7 @@ function showLoginModal() {
     const up = document.getElementById('up-arrow');
     if (up) up.style.display = 'none';
 }
+
 function hideLoginModal() {
     const modal = document.getElementById('login-modal');
     if (!modal) return;
@@ -315,12 +592,14 @@ function hideLoginModal() {
     const up = document.getElementById('up-arrow');
     if (up) up.style.display = 'flex';
 }
+
 function clearLoginInputs() {
     const u = document.getElementById('login-username');
     const p = document.getElementById('login-password');
     if (u) u.value = '';
     if (p) p.value = '';
 }
+
 function attemptLogin() {
     const u = document.getElementById('login-username');
     const p = document.getElementById('login-password');
@@ -332,23 +611,26 @@ function attemptLogin() {
         sessionStorage.setItem('bb_logged_in', 'true');
         sessionStorage.setItem('bb_logged_user', username);
         hideLoginModal();
-        showView('dashboard'); // Show dashboard on successful login
+        showView('dashboard');
     } else {
         alert('Invalid username or password');
     }
 }
+
 function showLogoutPopup() {
     const modal = document.getElementById('logout-modal');
     if (!modal) return;
     modal.style.display = 'flex';
     modal.setAttribute('aria-hidden', 'false');
 }
+
 function closeLogoutPopup() {
     const modal = document.getElementById('logout-modal');
     if (!modal) return;
     modal.style.display = 'none';
     modal.setAttribute('aria-hidden', 'true');
 }
+
 function confirmLogout() {
     try {
         sessionStorage.removeItem('bb_logged_in');
@@ -356,57 +638,6 @@ function confirmLogout() {
     } catch (e) { /* ignore */ }
     closeLogoutPopup();
     showLoginModal();
-}
-
-// Fetch invoices from server and populate local invoices array
-async function loadInvoicesFromServer() {
-    try {
-        const res = await fetch('/api/invoices?limit=1000');
-        const data = await res.json().catch(() => ({}));
-        if (res.ok && Array.isArray(data.invoices)) {
-            invoices = data.invoices.map(inv => {
-                return {
-                    id: inv.invoiceId || inv.id,
-                    invoiceId: inv.invoiceId || inv.id,
-                    date: inv.date || inv.createdAt,
-                    customerName: inv.customerName,
-                    customerPhone: inv.customerPhone,
-                    items: inv.items || [],
-                    total: inv.total
-                };
-            });
-            window.invoices = invoices;
-        } else {
-            console.warn('Failed to load invoices from server', data);
-        }
-    } catch (err) {
-        console.warn('Error loading invoices from server', err);
-    }
-}
-
-async function loadDraftsFromServer() {
-    try {
-        const res = await fetch('/api/drafts');
-        const data = await res.json().catch(() => ({}));
-        if (res.ok && Array.isArray(data.drafts)) {
-            drafts = data.drafts.map(d => ({
-                id: d.draftId, // client side uses 'id'
-                draftId: d.draftId,
-                tableNumber: d.tableNumber,
-                text: d.text,
-                supervisorName: d.supervisorName,
-                supervisorPhone: d.supervisorPhone,
-                lines: d.lines,
-                createdAt: d.createdAt,
-                updatedAt: d.updatedAt
-            }));
-            window.drafts = drafts;
-        } else {
-            console.warn('Failed to load drafts from server', data);
-        }
-    } catch (err) {
-        console.warn('Error loading drafts from server', err);
-    }
 }
 
 // Cart operations (CRUD)
@@ -418,6 +649,7 @@ function addToCart(productId) {
     save('bb_cart', cart);
     renderCart();
 }
+
 function updateQty(productId, qty) {
     qty = parseInt(qty) || 0;
     if (qty <= 0) { delete cart[productId]; }
@@ -425,17 +657,20 @@ function updateQty(productId, qty) {
     save('bb_cart', cart);
     renderCart();
 }
+
 function removeFromCart(productId) {
     delete cart[productId];
     save('bb_cart', cart);
     renderCart();
 }
+
 function clearCart() {
     if (!confirm('Are you sure you want to clear the cart?')) return;
     cart = {};
     save('bb_cart', cart);
     renderCart();
 }
+
 function renderCart() {
     const container = document.getElementById('cart-items');
     if (!container) return;
@@ -466,6 +701,7 @@ function renderCart() {
     }
     updateTotals();
 }
+
 function updateTotals() {
     const subtotal = Object.values(cart).reduce((s, i) => s + i.price * i.qty, 0);
     const subEl = document.getElementById('subtotal');
@@ -477,6 +713,7 @@ function updateTotals() {
 // Admin (CRUD for products)
 function openAdmin() { const m = document.getElementById('admin-modal'); if (m) m.style.display = 'flex'; renderAdminList(); }
 function closeAdmin() { const m = document.getElementById('admin-modal'); if (m) m.style.display = 'none'; hideProductForm(); }
+
 function renderAdminList() {
     const container = document.getElementById('admin-product-list');
     if (!container) return;
@@ -500,78 +737,9 @@ function renderAdminList() {
         container.appendChild(row);
     }
 }
-let editingProductId = null;
-function showProductForm() {
-    editingProductId = null;
-    const form = document.getElementById('product-form');
-    if (!form) return;
-    form.style.display = 'block';
-    const title = document.getElementById('pf-title');
-    if (title) title.innerText = 'Add Product';
-    const name = document.getElementById('pf-name');
-    const price = document.getElementById('pf-price');
-    const img = document.getElementById('pf-img');
-    if (name) name.value = '';
-    if (price) price.value = '';
-    if (img) img.value = '';
-}
-function hideProductForm() { const f = document.getElementById('product-form'); if (f) f.style.display = 'none'; }
-function saveProduct() {
-    const nameEl = document.getElementById('pf-name');
-    const priceEl = document.getElementById('pf-price');
-    const imgInputEl = document.getElementById('pf-img');
-    const name = nameEl ? nameEl.value.trim() : '';
-    const price = priceEl ? parseFloat(priceEl.value) : NaN;
-    const imgInput = imgInputEl ? imgInputEl.value.trim() : '';
-
-    if (!name || !price || isNaN(price)) return alert('Please enter valid product name and price');
-
-    const img = imgInput ? `/api/placeholder/${imgInput}` : '/api/placeholder/300/220';
-    if (editingProductId) {
-        const p = products.find(x => x.id === editingProductId);
-        if (p) { p.name = name; p.price = price; p.img = img; }
-    } else {
-        products.push({ id: uid(), name, price, img });
-    }
-    save('bb_products', products);
-    renderAdminList();
-    renderProducts();
-    hideProductForm();
-}
-function editProduct(id) {
-    const p = products.find(x => x.id === id);
-    if (!p) return;
-    editingProductId = id;
-    const form = document.getElementById('product-form');
-    if (!form) return;
-    form.style.display = 'block';
-    const title = document.getElementById('pf-title');
-    if (title) title.innerText = 'Edit Product';
-    const name = document.getElementById('pf-name');
-    const price = document.getElementById('pf-price');
-    const img = document.getElementById('pf-img');
-    if (name) name.value = p.name;
-    if (price) price.value = p.price;
-    const iparts = (p.img || '').split('/api/placeholder/');
-    if (img) img.value = iparts[1] || '';
-}
-function deleteProduct(id) {
-    if (!confirm('Delete this product?')) return;
-    products = products.filter(p => p.id !== id);
-    save('bb_products', products);
-    renderAdminList();
-    renderProducts();
-}
-function restoreDefaults() {
-    if (!confirm('Do you want to restore the default product list?')) return;
-    products = DEFAULT_PRODUCTS.slice();
-    save('bb_products', products);
-    renderProducts();
-    renderAdminList();
-}
 
 // Invoice generation and storage
-async function generateInvoice(orderType) { // <-- Add orderType here
+async function generateInvoice(orderType, paymentType) {
     const keys = Object.keys(cart);
     if (!keys.length) return alert('The cart is unavailable or empty.');
     const customerName = (document.getElementById('customer-name') ? document.getElementById('customer-name').value.trim() : '');
@@ -579,7 +747,8 @@ async function generateInvoice(orderType) { // <-- Add orderType here
     const inv = {
         id: 'INV-' + Date.now() + '-' + uid(),
         date: new Date().toISOString(),
-        orderType: orderType, // This will now correctly use the passed value
+        orderType: orderType,
+        paymentType: paymentType,
         customerName,
         customerPhone,
         items: keys.map(k => ({ name: cart[k].name, price: cart[k].price, qty: cart[k].qty })),
@@ -601,6 +770,7 @@ async function generateInvoice(orderType) { // <-- Add orderType here
             invoiceId: saved.invoiceId || saved.id || inv.id,
             date: saved.date || inv.date,
             orderType: saved.orderType || inv.orderType,
+            paymentType: saved.paymentType || inv.paymentType,
             customerName: saved.customerName || inv.customerName,
             customerPhone: saved.customerPhone || inv.customerPhone,
             items: saved.items || inv.items,
@@ -609,7 +779,6 @@ async function generateInvoice(orderType) { // <-- Add orderType here
         invoices.push(localInv);
         window.invoices = invoices;
         showInvoicePreview(localInv);
-        // clear cart after save (optional)
         cart = {};
         save('bb_cart', cart);
         renderCart();
@@ -618,6 +787,7 @@ async function generateInvoice(orderType) { // <-- Add orderType here
         alert('Failed to save invoice: ' + (err && err.message ? err.message : err));
     }
 }
+
 function showInvoicePreview(inv) {
     const modal = document.getElementById('invoice-modal');
     if (!modal) return;
@@ -626,6 +796,7 @@ function showInvoicePreview(inv) {
     if (!el) return;
     el.innerHTML = invoiceHtml(inv);
 }
+
 function invoiceHtml(inv) {
     const date = inv && inv.date ? new Date(inv.date).toLocaleString() : '';
     let itemsHtml = '';
@@ -647,12 +818,13 @@ function invoiceHtml(inv) {
         </div>
         <div style="margin-top:12px"></div>
         <div style="margin-top:12px">
-    <div><strong>Order Type:</strong> ${escapeHtml(inv.orderType || 'N/A')}</div>
-    <br>
-    <div><strong>Supervisor:</strong> ${escapeHtml(inv.customerName || inv.supervisorName || 'NA')}</div>
-    <div><strong>Supervisor Ph.no:</strong> ${escapeHtml(inv.customerPhone || inv.supervisorPhone || 'NA')}</div>
-    <br>
-</div>
+            <div><strong>Order Type:</strong> ${escapeHtml(inv.orderType || 'N/A')}</div>
+            <div><strong>Payment Type:</strong> ${escapeHtml(inv.paymentType || 'N/A')}</div>
+            <br>
+            <div><strong>Customer:</strong> ${escapeHtml(inv.customerName || 'NA')}</div>
+            <div><strong>Customer Ph.no:</strong> ${escapeHtml(inv.customerPhone || 'NA')}</div>
+            <br>
+        </div>
         <div class="inv-items">${itemsHtml}</div>
         <div style="margin-top:12px;border-top:1px solid #eee;padding-top:8px">
             <div style="display:flex;justify-content:space-between;font-weight:700"><div>Total</div><div>₹${inv.total}</div></div>
@@ -686,6 +858,7 @@ function printInvoice() {
         try { printWindow.print(); } catch (e) { console.warn('Print failed', e); }
     }, 500);
 }
+
 async function exportInvoicePDF() {
     const el = document.getElementById('invoice-preview');
     if (!el) return;
@@ -700,7 +873,6 @@ async function exportInvoicePDF() {
         const imgProps = pdf.getImageProperties(imgData);
         const imgWidthMM = pageWidth - 20;
         const imgHeightMM = (imgProps.height * imgWidthMM) / imgProps.width;
-
         pdf.addImage(imgData, 'PNG', 10, 10, imgWidthMM, imgHeightMM);
         const invId = (document.querySelector('#invoice-preview h2') ? 'Invoice' : 'invoice');
         pdf.save(invId + '.pdf');
@@ -715,6 +887,7 @@ async function exportInvoicePDF() {
         if (btn) btn.disabled = false;
     }
 }
+
 function closeInvoiceModal() { const m = document.getElementById('invoice-modal'); if (m) m.style.display = 'none'; }
 
 // Reports
@@ -731,13 +904,13 @@ function viewInvoices() {
             <div style="display:flex;justify-content:space-between;padding:8px;border-radius:8px;margin-bottom:8px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));border:1px solid rgba(255,255,255,0.02)">
                 <div>
                     <div style="font-weight:700">${escapeHtml(inv.id)}</div>
-                    <div style="color:var(--muted);font-size:13px">${escapeHtml(new Date(inv.date).toLocaleString())} · ${escapeHtml(inv.customerName || 'NA')}</div>
-                    <div style="color:var(--muted);font-size:13px">${escapeHtml((inv.items || []).map(it => it.name + '×' + it.qty).join(', '))}</div>
+                    <div style="color:var(--muted);font-size:13px">${escapeHtml(new Date(inv.date).toLocaleString())}</div>
                 </div>
                 <div style="text-align:right">
                     <div style="font-weight:700">₹${inv.total}</div>
                     <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:6px">
-                        <button class="ghost" onclick='previewStoredInvoice("${escapeHtml(inv.id)}")'>Preview</button><button class="ghost" onclick='deleteInvoice("${encodeURIComponent(inv.id)}")'>Delete</button>
+                        <button class="ghost" onclick='previewStoredInvoice("${escapeHtml(inv.id)}")'>Preview</button>
+                        <button class="ghost" onclick='deleteInvoice("${encodeURIComponent(inv.id)}")'>Delete</button>
                     </div>
                 </div>
             </div>
@@ -746,12 +919,14 @@ function viewInvoices() {
     html += `</div>`;
     area.innerHTML = html;
 }
+
 function previewStoredInvoice(id) {
     const decoded = decodeURIComponent(id);
     const inv = invoices.find(x => x.id === decoded);
     if (!inv) return alert('Invoice not found');
     showInvoicePreview(inv);
 }
+
 async function deleteInvoice(id) {
     const decoded = decodeURIComponent(id);
     if (!confirm('Delete invoice?')) return;
@@ -785,6 +960,7 @@ function showDailyReport() {
     });
     showReport(dayInv, `Daily Report: ${start.toLocaleDateString()}`);
 }
+
 function showMonthlyReport() {
     const ym = prompt("Enter month for monthly report (YYYY-MM):\n\n(OR)\n\nLeave blank for current month's report:");
     let yyyy, mm;
@@ -804,6 +980,7 @@ function showMonthlyReport() {
     });
     showReport(monthInv, `Monthly Report: ${start.toLocaleString('default', { month: 'long', year: 'numeric' })}`);
 }
+
 function showReport(invList, title) {
     const area = document.getElementById('report-area');
     if (!area) return;
@@ -812,7 +989,6 @@ function showReport(invList, title) {
         return;
     }
     const total = invList.reduce((s, i) => s + (Number(i.total) || 0), 0);
-    // let html = `<div><strong>${escapeHtml(title)}</strong><div style="margin-top:8px">Total Sales: <strong>₹${total}</strong></div></div><div style="margin-top:8px;max-height:200px;overflow:auto">`;
     let html = `<div><strong>${escapeHtml(title)}</strong><div style="margin-top:8px"></div></div><div style="margin-top:8px;max-height:200px;overflow:auto">`;
     for (const inv of invList) {
         html += `
@@ -827,6 +1003,7 @@ function showReport(invList, title) {
     html += '</div>';
     area.innerHTML = html;
 }
+
 function downloadAllReports() {
     if (!window.XLSX) {
         return alert('SheetJS (XLSX) library not found. Add the CDN script before calling this function.');
@@ -835,7 +1012,7 @@ function downloadAllReports() {
         return alert('No invoices are available.');
     }
     const aoa = [
-        ['Invoice ID', 'Date & Time', 'Order Type', 'Supervisor', 'Supervisor Ph.no', 'Product Name & Quantity', 'Total Price']
+        ['Invoice ID', 'Date & Time', 'Order Type', 'Payment Type', 'Customer', 'Customer Ph.no', 'Product Name & Quantity', 'Total Price']
     ];
     for (const inv of invoices) {
         const date = new Date(inv.date);
@@ -846,6 +1023,7 @@ function downloadAllReports() {
             inv.id || '',
             dateStr,
             inv.orderType || 'N/A',
+            inv.paymentType || 'N/A',
             inv.customerName || 'NA',
             inv.customerPhone || 'NA',
             items,
@@ -853,7 +1031,7 @@ function downloadAllReports() {
         ]);
     }
     const ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols'] = [{ wch: 20 }, { wch: 22 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 60 }, { wch: 12 }];
+    ws['!cols'] = [{ wch: 20 }, { wch: 22 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 60 }, { wch: 12 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Invoices');
     XLSX.writeFile(wb, 'Export_All_Invoices.xlsx');
@@ -864,6 +1042,7 @@ function filterName(el) {
     if (!el) return;
     el.value = el.value.replace(/[^A-Za-z\s]/g, '');
 }
+
 function filterPhone(el) {
     if (!el) return;
     el.value = el.value.replace(/\D/g, '').slice(0, 10);
@@ -877,13 +1056,13 @@ function openWAModal() {
     const modal = document.getElementById('wa-modal');
     if (modal) modal.style.display = 'flex';
 }
+
 function closeWAModal() {
     const modal = document.getElementById('wa-modal');
     if (modal) modal.style.display = 'none';
 }
+
 async function sendPdfToWhatsapp() {
-    // const phone = (document.getElementById('wa-phone-input') ? (document.getElementById('wa-phone-input').value || '') : '').replace(/\D/g, '').slice(0, 10);
-    // if (!phone || phone.length !== 10) return alert('Please enter a valid 10-digit phone number');
     const el = document.getElementById('invoice-preview');
     if (!el) return alert('No invoice to send');
     const sendBtn = document.getElementById('wa-send-btn');
@@ -917,9 +1096,9 @@ async function sendPdfToWhatsapp() {
                 shared = false;
             }
         }
-
         if (!shared) {
             const blobUrl = URL.createObjectURL(blob);
+            const phone = (document.getElementById('wa-phone-input') ? (document.getElementById('wa-phone-input').value || '') : '').replace(/\D/g, '').slice(0, 10);
             const fullNumber = '91' + phone;
             const text = encodeURIComponent(`Please find the invoice attached:\n${blobUrl}`);
             const waLink = `https://wa.me/${fullNumber}?text=${text}`;
@@ -942,11 +1121,13 @@ function openQuickReport() {
     if (res) res.innerHTML = '';
     el.style.display = 'flex';
 }
+
 function closeQuickReport() {
     const el = document.getElementById('quick-report-modal');
     if (!el) return;
     el.style.display = 'none';
 }
+
 function openFoodOrder() {
     const el = document.getElementById('food-order-modal');
     if (!el) return;
@@ -954,30 +1135,13 @@ function openFoodOrder() {
     if (res) res.innerHTML = '';
     el.style.display = 'flex';
 }
+
 function closeFoodOrder() {
     const el = document.getElementById('food-order-modal');
     if (!el) return;
     el.style.display = 'none';
 }
-function getTodayInvoices() {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-    return (invoices || []).filter(inv => {
-        if (!inv.date) return false;
-        const t = new Date(inv.date);
-        return t >= start && t < end;
-    });
-}
-function getYesterdayInvoices() {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    return (invoices || []).filter(inv => {
-        const t = new Date(inv.date);
-        return t >= start && t < end;
-    });
-}
+
 function copyToClipboard(text) {
     if (!text && text !== 0) { alert('Nothing to copy'); return; }
     const str = String(text);
@@ -1002,6 +1166,7 @@ function copyToClipboard(text) {
         }
     }
 }
+
 function showTodayCount() {
     const list = getTodayInvoices();
     const count = list.length;
@@ -1018,6 +1183,7 @@ function showTodayCount() {
     wrapper.appendChild(btn);
     resEl.appendChild(wrapper);
 }
+
 function showTodayInvoiceNumbers() {
     const list = getTodayInvoices();
     const ids = list.map(i => i.id).join(', ');
@@ -1041,6 +1207,7 @@ function showTodayInvoiceNumbers() {
     resEl.appendChild(title);
     resEl.appendChild(row);
 }
+
 function showTodayBusiness() {
     const list = getTodayInvoices();
     const total = list.reduce((s, inv) => s + (Number(inv.total) || 0), 0);
@@ -1057,6 +1224,7 @@ function showTodayBusiness() {
     wrapper.appendChild(btn);
     resEl.appendChild(wrapper);
 }
+
 function showYesterdayBusiness() {
     const list = getYesterdayInvoices();
     const total = list.reduce((s, inv) => s + (Number(inv.total) || 0), 0);
@@ -1098,23 +1266,40 @@ function renderDrafts() {
         container.innerHTML = '<div class="muted-note" style="padding: 20px; text-align: center;">No saved drafts found.</div>';
         return;
     }
+
     let html = '';
     for (const draft of currentDrafts) {
         const date = new Date(draft.createdAt).toLocaleString();
+        const customerInfo = draft.customerName ? `Customer: ${escapeHtml(draft.customerName)}` : '';
+
         html += `
-            <div style="background: var(--bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 10px;">
-                <div style="display:flex; justify-content: space-between; align-items: flex-start;">
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="color: var(--text-secondary); font-size: 12px;">Saved on: ${escapeHtml(date)}</div>
-                        <div style="font-weight: 500; margin-top: 4px;">Table No: ${escapeHtml(draft.tableNumber || 'N/A')}</div>
-                        <div style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;">
-                            ${draft.supervisorName ? `Supervisor: ${escapeHtml(draft.supervisorName)}` : ''}
+            <div class="draft-card">
+                <div class="draft-header">
+                    <div class="draft-meta">
+                        <div class="draft-date">Saved on: ${escapeHtml(date)}</div>
+                        <div class="draft-table">
+                            <div class="draft-table-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                                    <path d="M20 6h-2.18c.11-.31.18-.65.18-1a2.996 2.996 0 0 0-5.5-1.65l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 15H4v-2h16v2zm0-5H4V8h5.08L7 10.83 8.62 12 11 8.76l1-1.36 1 1.36L15.38 12 17 10.83 14.92 8H20v6z" />
+                                </svg>
+                            </div>
+                            <div class="draft-table-text">Table No: ${escapeHtml(draft.tableNumber || 'N/A')}</div>
                         </div>
-                        <pre style="white-space: pre-wrap; word-break: break-all; font-family: inherit; font-size: 13px; margin-top: 8px; max-height: 80px; overflow-y: auto; background: var(--card); padding: 4px 6px; border-radius: 4px; border: 1px solid var(--border-color);">${escapeHtml(draft.text || '')}</pre>
+                        ${customerInfo ? `<div class="draft-customer">${customerInfo}</div>` : ''}
                     </div>
-                    <div style="display: flex; gap: 8px; margin-left: 12px; align-items: center;">
-                        <button class="ghost" onclick="editDraft('${draft.id}')">Edit</button>
-                        <button class="ghost" onclick="deleteDraft('${draft.id}')">Delete</button>
+                    <div class="draft-actions">
+                        <button class="ghost ripple" onclick="editDraft('${draft.id}')">
+                            <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor" style="width:14px;height:14px;">
+                                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                            </svg>
+                            Edit
+                        </button>
+                        <button class="ghost ripple" onclick="deleteDraft('${draft.id}')">
+                            <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor" style="width:14px;height:14px;">
+                                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                            </svg>
+                            Delete
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1126,9 +1311,8 @@ function renderDrafts() {
 function editDraft(id) {
     closeDraftsModal();
     openTypeInvoiceModal();
-    _typeInvoiceState.editingDraftId = id; // This line is crucial
+    _typeInvoiceState.editingDraftId = id;
     window.restoreDraft(id);
-    // Trigger validation after restoring the draft
     const ta = document.getElementById('type-invoice-textarea');
     if (ta) {
         const event = new Event('input', { bubbles: true, cancelable: true });
@@ -1147,9 +1331,8 @@ async function deleteDraft(id) {
             return alert('Delete failed: ' + (data.error || res.statusText));
         }
 
-        // Remove from local array and re-render
         window.drafts = (window.drafts || []).filter(d => d.id !== id);
-        renderDrafts(); // Refresh the list in the modal
+        renderDrafts();
 
     } catch (err) {
         console.error('Failed to delete draft', err);
@@ -1162,7 +1345,7 @@ async function deleteDraft(id) {
     'use strict';
     const STORAGE_KEY = 'business_assistant_conversation_v1';
     const MAX_MESSAGES = 400;
-    const WELCOME = "Hi, I'm your Personal Business Assistant. Please use the buttons below to learn more about your today's & yesterday's business. Thank you.";
+    const WELCOME = "Please use the buttons below to learn more about your today's & yesterday's revenue. Thank you.";
     const toggleBtn = document.getElementById('ba-toggle');
     const chatWindow = document.getElementById('ba-window');
     const closeBtn = document.getElementById('ba-close');
@@ -1170,7 +1353,6 @@ async function deleteDraft(id) {
     const inputEl = document.getElementById('ba-input');
     const sendBtn = document.getElementById('ba-send');
     let conversation = [];
-
     function now() { return new Date().toISOString(); }
     function saveConversation() {
         try {
@@ -1237,7 +1419,6 @@ async function deleteDraft(id) {
             let dateStr = 'N/A', grandTotal = 'N/A', customerName = 'N/A', item = 'N/A', endResult;
             const list = Array.isArray(window.invoices) ? window.invoices : [];
             const inv = list.find(i => String(i.id).includes(raw));
-
             if (inv) {
                 if (inv.date) {
                     const d = new Date(inv.date);
@@ -1254,7 +1435,7 @@ async function deleteDraft(id) {
                 if (inv.total != null && !isNaN(inv.total)) {
                     grandTotal = inv.total.toLocaleString();
                 }
-                endResult = `Date and time of purchase: ${dateStr} Supervisor: ${customerName} Products: ${item} Total: ${grandTotal}`;
+                endResult = `Date and time of purchase: ${dateStr} Customer: ${customerName} Products: ${item} Total: ₹${grandTotal}`;
             } else {
                 endResult = "We couldn't find an invoice with that number";
             }
@@ -1292,7 +1473,6 @@ async function deleteDraft(id) {
     let defaultActionsEl = null;
     function renderDefaultButtons() {
         if (!chatWindow || !messagesWrap || defaultActionsEl) return;
-
         defaultActionsEl = document.createElement('div');
         defaultActionsEl.className = 'ba-default-actions';
         defaultActionsEl.style.cssText = 'display:flex;gap:8px;padding:10px;flex-wrap:wrap;border-top:1px solid #eee;background:transparent;';
@@ -1307,38 +1487,40 @@ async function deleteDraft(id) {
             return btn;
         };
 
-        const actions = [{
-            label: 'Today\'s invoice count',
-            handler: () => {
-                pushMessage('user', 'The total number of invoices generated today.');
-                const list = getTodayInvoices();
-                respondBot(`Today's invoice count: ${list.length}`);
-            }
-        }, {
-            label: 'Today\'s invoice numbers',
-            handler: () => {
-                pushMessage('user', 'Invoice information.');
-                const list = getTodayInvoices();
-                const ids = list.map(inv => inv.id).join(', ') || '—';
-                respondBot(`Invoice information: ${ids}`);
-            }
-        }, {
-            label: 'Today\'s business',
-            handler: () => {
-                pushMessage('user', "Today's business.");
-                const list = getTodayInvoices();
-                const total = list.reduce((s, inv) => s + (Number(inv.total) || 0), 0);
-                respondBot(`Today's business (total): ₹${total}`);
-            }
-        }, {
-            label: 'Yesterday\'s business',
-            handler: () => {
-                pushMessage('user', "Yesterday's business.");
-                const list = getYesterdayInvoices();
-                const total = list.reduce((s, inv) => s + (Number(inv.total) || 0), 0);
-                respondBot(`Yesterday's business (total): ₹${total}`);
-            }
-        }];
+        const actions = [
+            //     {
+            //     label: 'Today\'s invoice count',
+            //     handler: () => {
+            //         pushMessage('user', 'The total number of invoices generated today.');
+            //         const list = getTodayInvoices();
+            //         respondBot(`Today's invoice count: ${list.length}`);
+            //     }
+            // }, {
+            //     label: 'Today\'s invoice numbers',
+            //     handler: () => {
+            //         pushMessage('user', 'Invoice information.');
+            //         const list = getTodayInvoices();
+            //         const ids = list.map(inv => inv.id).join(', ') || '—';
+            //         respondBot(`Invoice information: ${ids}`);
+            //     }
+            // }, 
+            {
+                label: 'Today\'s revenue',
+                handler: () => {
+                    pushMessage('user', "Today's revenue.");
+                    const list = getTodayInvoices();
+                    const total = list.reduce((s, inv) => s + (Number(inv.total) || 0), 0);
+                    respondBot(`Today's revenue (total): ₹${total}`);
+                }
+            }, {
+                label: 'Yesterday\'s revenue',
+                handler: () => {
+                    pushMessage('user', "Yesterday's revenue.");
+                    const list = getYesterdayInvoices();
+                    const total = list.reduce((s, inv) => s + (Number(inv.total) || 0), 0);
+                    respondBot(`Yesterday's revenue (total): ₹${total}`);
+                }
+            }];
 
         actions.forEach(action => defaultActionsEl.appendChild(makeButton(action.label, action.handler)));
 
@@ -1389,6 +1571,7 @@ async function deleteDraft(id) {
 
 // New: Type-to-generate-invoice flow
 let _typeInvoiceState = { rawLines: [], parsedLines: [], validItems: [], editingDraftId: null };
+
 function openTypeInvoiceModal() {
     const modal = document.getElementById('type-invoice-modal');
     if (!modal) return;
@@ -1397,19 +1580,46 @@ function openTypeInvoiceModal() {
     const ta = document.getElementById('type-invoice-textarea');
     if (ta) { ta.value = ''; const c = document.getElementById('type-lines-count'); if (c) c.innerText = '0'; }
 
-    renderTableNumberGrid(); // Add this line
-
     const res = document.getElementById('type-validate-result'); if (res) res.innerHTML = '';
     const actionsArea = document.getElementById('type-actions-area'); if (actionsArea) actionsArea.style.display = 'none';
     modal.style.display = 'flex';
 }
+
+// function renderTableNumberGrid() {
+//     const container = document.getElementById('table-number-grid');
+//     if (!container) return;
+//     container.innerHTML = '';
+//     const editingDraftId = _typeInvoiceState?.editingDraftId;
+
+//     for (let i = 1; i <= 12; i++) {
+//         const tableNum = String(i);
+//         const btn = document.createElement('button');
+//         btn.type = 'button';
+//         btn.className = 'table-box';
+//         btn.textContent = tableNum;
+
+//         const isOccupied = (window.drafts || []).some(
+//             d => d.tableNumber === tableNum && d.id !== editingDraftId
+//         );
+
+//         if (isOccupied) {
+//             btn.classList.add('occupied');
+//             btn.disabled = true;
+//             btn.title = 'This table has an open draft';
+//         } else {
+//             btn.onclick = () => selectTable(tableNum);
+//         }
+//         container.appendChild(btn);
+//     }
+// }
+
 function renderTableNumberGrid() {
     const container = document.getElementById('table-number-grid');
     if (!container) return;
     container.innerHTML = '';
     const editingDraftId = _typeInvoiceState?.editingDraftId;
 
-    for (let i = 1; i <= 12; i++) {
+    for (let i = 1; i <= 15; i++) {  // Changed from 12 to 15
         const tableNum = String(i);
         const btn = document.createElement('button');
         btn.type = 'button';
@@ -1425,11 +1635,12 @@ function renderTableNumberGrid() {
             btn.disabled = true;
             btn.title = 'This table has an open draft';
         } else {
-            btn.onclick = () => selectTable(tableNum);
+            btn.onclick = () => selectTable(tableNumber);
         }
         container.appendChild(btn);
     }
 }
+
 function selectTable(tableNumber) {
     _typeInvoiceState.selectedTable = tableNumber;
     const container = document.getElementById('table-number-grid');
@@ -1438,45 +1649,34 @@ function selectTable(tableNumber) {
     container.querySelectorAll('.table-box').forEach(btn => {
         btn.classList.remove('selected');
     });
-
     const selectedBtn = Array.from(container.querySelectorAll('.table-box')).find(btn => btn.textContent === tableNumber);
     if (selectedBtn) {
         selectedBtn.classList.add('selected');
     }
 }
+
 function closeTypeInvoiceModal() {
     const modal = document.getElementById('type-invoice-modal');
     if (!modal) return;
     modal.style.display = 'none';
 }
-async function finalizeTypeInvoice(orderType) {
+
+async function finalizeTypeInvoice(orderType, paymentType) {
     const valid = (_typeInvoiceState && Array.isArray(_typeInvoiceState.validItems)) ? _typeInvoiceState.validItems.slice() : [];
     if (!valid.length) return alert('No valid products to generate invoice.');
 
-    const tableNumber = _typeInvoiceState?.selectedTable;
-    const supervisorName = (document.getElementById('type-supervisor-name')?.value.trim()) || '';
-    const supervisorPhone = (document.getElementById('type-supervisor-phone')?.value.trim()) || '';
-
-    if (!tableNumber) {
-        return alert('A Table Number must be selected to generate an invoice.');
-    }
-
-    const editingDraftId = _typeInvoiceState?.editingDraftId;
-    const isTableNumberInUse = (window.drafts || []).some(
-        d => d.tableNumber === tableNumber && d.id !== editingDraftId
-    );
-
-    if (isTableNumberInUse) {
-        return alert(`An open draft already exists for Table Number "${tableNumber}". Please finalize or delete the existing draft first.`);
-    }
+    const tableNumber = null; // or remove this variable entirely
+    const customerName = (document.getElementById('type-customer-name')?.value.trim()) || '';
+    const customerPhone = (document.getElementById('type-customer-phone')?.value.trim()) || '';
 
     const invLocal = {
         invoiceId: 'INV-' + Date.now() + '-' + uid(),
         date: new Date().toISOString(),
-        orderType: orderType, // This part is correct
+        orderType: orderType,
+        paymentType: paymentType,
         tableNumber: tableNumber,
-        supervisorName,
-        supervisorPhone,
+        customerName,
+        customerPhone,
         items: valid.map(it => ({ name: it.name, price: it.price, qty: it.qty })),
         total: valid.reduce((s, it) => s + (Number(it.price) || 0) * (Number(it.qty) || 0), 0)
     };
@@ -1486,24 +1686,21 @@ async function finalizeTypeInvoice(orderType) {
         const data = await res.json().catch(() => ({}));
         const saved = (res.ok && data?.invoice) ? data.invoice : invLocal;
 
-        // --- Start of Correction ---
         const localInv = {
             id: saved.invoiceId || saved.id,
             invoiceId: saved.invoiceId || saved.id,
             date: saved.date || invLocal.date,
-            orderType: saved.orderType || invLocal.orderType, // This line was missing
-            supervisorName: saved.supervisorName || invLocal.supervisorName,
-            supervisorPhone: saved.supervisorPhone || invLocal.supervisorPhone,
+            orderType: saved.orderType || invLocal.orderType,
+            paymentType: saved.paymentType || invLocal.paymentType,
+            customerName: saved.customerName || invLocal.customerName,
+            customerPhone: saved.customerPhone || invLocal.customerPhone,
             items: saved.items || invLocal.items,
             total: saved.total ?? invLocal.total
         };
-        // --- End of Correction ---
-
         invoices.unshift(localInv);
         window.invoices = invoices;
         showInvoicePreview(localInv);
     } catch (err) {
-        // Fallback: show local invoice if server fails
         showInvoicePreview(invLocal);
         invoices.unshift(invLocal);
         window.invoices = invoices;
@@ -1538,7 +1735,7 @@ async function aiCorrectName(name) {
     try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000);
-        const res = await fetch('/api/ai/correct', {
+        const res = await fetch('/api/ai/correct-name', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name }),
@@ -1641,19 +1838,30 @@ async function _validateTypeInvoiceLines(lines, showUi = true) {
     _typeInvoiceState.validItems = validItems;
     window._typeInvoiceState = _typeInvoiceState;
 
+    // Update the UI rendering part in _validateTypeInvoiceLines
     if (showUi) {
         const res = document.getElementById('type-validate-result');
         if (res) {
-            let html = `<div style="max-height:220px;overflow:auto;padding:6px;border-radius:8px;background:var(--bg-light);border:1px solid var(--border-color);">`;
+            let html = `<div class="validation-result">`;
             for (const p of parsed) {
-                if (p.valid) {
-                    html += `<div style="display:flex;justify-content:space-between;padding:6px;border-bottom:1px dashed #eee"><div style="color:var(--text-secondary)">${escapeHtml(p.name)} × ${p.qty}</div><div style="color:green">Available</div></div>`;
-                } else {
-                    html += `<div style="display:flex;justify-content:space-between;padding:6px;border-bottom:1px dashed #eee"><div style="color:red">${escapeHtml(p.line)}</div><div style="color:red">Not available</div></div>`;
-                }
+                const statusClass = p.valid ? 'valid' : 'invalid';
+                const statusBadge = p.valid ?
+                    '<span class="status-badge available">Available</span>' :
+                    '<span class="status-badge unavailable">Not Available</span>';
+
+                html += `
+                <div class="validation-item ${statusClass}">
+                    <div style="color:var(--text-primary);font-weight:500;">
+                        ${escapeHtml(p.valid ? `${p.name} × ${p.qty}` : p.line)}
+                    </div>
+                    ${statusBadge}
+                </div>
+            `;
             }
             html += `</div>`;
-            html += `<div style="margin-top:8px;color:var(--text-secondary)">Valid items: <strong>${validItems.length}</strong> / ${parsed.length}.</div>`;
+            html += `<div style="margin-top:12px;color:var(--text-secondary);font-size:13px;text-align:center;">
+            Valid items: <strong style="color:var(--accent);">${validItems.length}</strong> of ${parsed.length}
+        </div>`;
             res.innerHTML = html;
         }
         const actionsArea = document.getElementById('type-actions-area');
@@ -1687,14 +1895,14 @@ async function saveDraftFromTypeInvoice() {
     try {
         const text = document.getElementById('type-invoice-textarea')?.value || '';
         const tableNumber = _typeInvoiceState?.selectedTable;
-        const supervisorName = document.getElementById('type-supervisor-name')?.value?.trim() || '';
-        const supervisorPhone = document.getElementById('type-supervisor-phone')?.value?.trim() || '';
+        const customerName = document.getElementById('type-customer-name')?.value?.trim() || '';
+        const customerPhone = document.getElementById('type-customer-phone')?.value?.trim() || '';
         const lines = text.split('\n').filter(l => l.trim() !== '').length;
 
         if (!tableNumber) {
             return alert('A Table Number must be selected to save a draft.');
         }
-        if (!text && !supervisorName && !supervisorPhone) {
+        if (!text && !customerName && !customerPhone) {
             return alert('Cannot save an empty draft.');
         }
         const editingId = window._typeInvoiceState?.editingDraftId;
@@ -1708,11 +1916,11 @@ async function saveDraftFromTypeInvoice() {
         }
 
         const payload = {
-            id: editingId, // This will be the draftId
+            id: editingId,
             text,
             tableNumber,
-            supervisorName,
-            supervisorPhone,
+            customerName,
+            customerPhone,
             lines,
         };
 
@@ -1747,16 +1955,15 @@ function restoreDraft(id) {
         selectTable(draft.tableNumber);
     }
 
-    const sn = document.getElementById('type-supervisor-name');
-    if (sn) sn.value = draft.supervisorName;
-    const sp = document.getElementById('type-supervisor-phone');
-    if (sp) sp.value = draft.supervisorPhone;
+    const sn = document.getElementById('type-customer-name');
+    if (sn) sn.value = draft.customerName;
+    const sp = document.getElementById('type-customer-phone');
+    if (sp) sp.value = draft.customerPhone;
     const linesEl = document.getElementById('type-lines-count');
     if (linesEl) linesEl.textContent = String(draft.lines || (draft.text || '').split('\n').filter(Boolean).length);
 }
 
 function openOrderTypeModal(context) {
-    // First, perform checks to ensure an invoice can be generated
     if (context === 'cart') {
         const keys = Object.keys(cart);
         if (!keys.length) return alert('The cart is unavailable or empty.');
@@ -1775,52 +1982,229 @@ function openOrderTypeModal(context) {
 }
 
 function closeOrderTypeModal() {
-    _orderContext = null;
     const modal = document.getElementById('order-type-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function openPaymentTypeModal() {
+    const modal = document.getElementById('payment-type-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closePaymentTypeModal() {
+    _orderContext = null;
+    _selectedOrderType = null;
+    const modal = document.getElementById('payment-type-modal');
     if (modal) modal.style.display = 'none';
 }
 
 function confirmOrderType(orderType) {
     if (!_orderContext) return;
-
-    if (_orderContext === 'cart') {
-        generateInvoice(orderType);
-    } else if (_orderContext === 'typed') {
-        finalizeTypeInvoice(orderType);
-    }
-
+    _selectedOrderType = orderType;
     closeOrderTypeModal();
+    openPaymentTypeModal();
 }
 
-function shiftHourlySales(direction) { // 1 for prev/left (earlier), -1 for next/right (later)
+function confirmPaymentType(paymentType) {
+    if (!_orderContext || !_selectedOrderType) return;
+
+    if (_orderContext === 'cart') {
+        generateInvoice(_selectedOrderType, paymentType);
+    } else if (_orderContext === 'typed') {
+        finalizeTypeInvoice(_selectedOrderType, paymentType);
+    }
+
+    closePaymentTypeModal();
+}
+
+function shiftHourlySales(direction) {
     const maxOffset = Math.floor(24 / HOURLY_CHART_WINDOW_SIZE) - 1;
-
-    // The direction now directly corresponds to the change in offset.
-    // A positive direction (1) increases the offset, moving back in time (previous).
-    // A negative direction (-1) decreases the offset, moving forward in time (next).
     hourlyChartOffset += direction;
-
-    // Clamp the values to stay within bounds
     hourlyChartOffset = Math.max(0, Math.min(hourlyChartOffset, maxOffset));
-
-    // Re-render the chart with the new offset
     renderSalesChart();
 }
 
+// Table Selection Modal Functions
+function openTableSelectionModal() {
+    const modal = document.getElementById('table-selection-modal');
+    if (!modal) return;
+    renderEnhancedTableSelectionGrid();
+    modal.style.display = 'flex';
+}
+
+function renderEnhancedTableSelectionGrid() {
+    const container = document.getElementById('table-selection-grid');
+    if (!container) return;
+    container.innerHTML = '';
+
+    for (let i = 1; i <= 15; i++) {
+        const tableNum = String(i);
+
+        // Check if table has a draft
+        const hasDraft = (window.drafts || []).some(d => d.tableNumber === tableNum);
+        const status = hasDraft ? 'occupied' : 'available';
+
+        const tableBox = document.createElement('div');
+        tableBox.className = `table-box ${status}`;
+
+        if (status === 'occupied') {
+            tableBox.style.cursor = 'not-allowed';
+        }
+
+        tableBox.innerHTML = `
+            <div class="table-status-badge ${status}"></div>
+            <div class="table-number">Table ${tableNum}</div>
+        `;
+
+        if (status !== 'occupied') {
+            tableBox.onclick = () => selectTableAndOpenOrder(tableNum);
+        }
+
+        container.appendChild(tableBox);
+    }
+}
+
+function closeTableSelectionModal() {
+    const modal = document.getElementById('table-selection-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function renderTableSelectionGrid() {
+    const container = document.getElementById('table-selection-grid');
+    if (!container) return;
+    container.innerHTML = '';
+
+    for (let i = 1; i <= 15; i++) {
+        const tableNum = String(i);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'table-box';
+        btn.textContent = 'Table ' + tableNum;
+        btn.style.padding = '20px 12px';
+        btn.style.fontSize = '15px';
+
+        const isOccupied = (window.drafts || []).some(d => d.tableNumber === tableNum);
+
+        if (isOccupied) {
+            btn.classList.add('occupied');
+            btn.disabled = true;
+            btn.title = 'This table has an open draft';
+        } else {
+            btn.onclick = () => selectTableAndOpenOrder(tableNum);
+        }
+        container.appendChild(btn);
+    }
+}
+
+function selectTableAndOpenOrder(tableNumber) {
+    closeTableSelectionModal();
+    openTypeInvoiceModal();
+    // Pre-select the table
+    setTimeout(() => {
+        selectTable(tableNumber);
+    }, 100);
+}
+
+// Table Swap Modal Functions
+function openTableSwapModal() {
+    const modal = document.getElementById('table-selection-modal');
+    if (!modal) return;
+    renderEnhancedTableSelectionGrid();
+    modal.style.display = 'flex';
+
+    // Update header text
+    const modalTitle = modal.querySelector('h3');
+    if (modalTitle) {
+        modalTitle.textContent = 'Swap Table';
+    }
+    const modalSubtitle = modal.querySelector('p');
+    if (modalSubtitle) {
+        modalSubtitle.textContent = 'Choose a new table for this order';
+    }
+}
+
+// Update selectTableAndOpenOrder to handle both new orders and swaps
+function selectTableAndOpenOrder(tableNumber) {
+    const typeInvoiceModal = document.getElementById('type-invoice-modal');
+    const isTypeInvoiceModalOpen = typeInvoiceModal && typeInvoiceModal.style.display === 'flex';
+
+    closeTableSelectionModal();
+
+    if (isTypeInvoiceModalOpen) {
+        // This is a table swap
+        selectTable(tableNumber);
+        updateSelectedTableBanner();
+    } else {
+        // This is a new order
+        openTypeInvoiceModal();
+        setTimeout(() => {
+            selectTable(tableNumber);
+            updateSelectedTableBanner();
+        }, 100);
+    }
+}
+
+// Update selected table banner
+function updateSelectedTableBanner() {
+    const banner = document.getElementById('selected-table-banner');
+    const tableNumberEl = document.getElementById('selected-table-number');
+
+    if (_typeInvoiceState?.selectedTable) {
+        if (banner) banner.style.display = 'flex';
+        if (tableNumberEl) tableNumberEl.textContent = `Table ${_typeInvoiceState.selectedTable}`;
+    } else {
+        if (banner) banner.style.display = 'none';
+    }
+}
+
+// Update selectTable function to call updateSelectedTableBanner
+const originalSelectTable = window.selectTable;
+window.selectTable = function (tableNumber) {
+    originalSelectTable(tableNumber);
+    updateSelectedTableBanner();
+};
+
+// Update openTypeInvoiceModal to show/hide banner
+const originalOpenTypeInvoiceModal = window.openTypeInvoiceModal;
+window.openTypeInvoiceModal = function () {
+    originalOpenTypeInvoiceModal();
+    updateSelectedTableBanner();
+};
+
+// Export functions
+Object.assign(window, {
+    openTableSwapModal,
+    updateSelectedTableBanner
+});
+
+// Global function assignments
+Object.assign(window, {
+    showView, renderDashboard,
+    previewStoredInvoice, deleteInvoice, openAdmin, closeAdmin, showProductForm, hideProductForm,
+    saveProduct, editProduct, deleteProduct, restoreDefaults, generateInvoice, exportInvoicePDF,
+    closeInvoiceModal, viewInvoices, showDailyReport, showMonthlyReport, downloadAllReports,
+    clearCart, addToCart, updateQty, removeFromCart, printInvoice, openWAModal, closeWAModal,
+    sendPdfToWhatsapp, openQuickReport, openFoodOrder, closeFoodOrder, closeQuickReport,
+    getTodayInvoices, getYesterdayInvoices, copyToClipboard, showTodayCount, showTodayInvoiceNumbers,
+    showTodayBusiness, showYesterdayBusiness, openTypeInvoiceModal, closeTypeInvoiceModal,
+    finalizeTypeInvoice, _typeInvoiceState, aiCorrectName, batchCorrectNames, _validateTypeInvoiceLines,
+    openDraftsModal, closeDraftsModal, editDraft, deleteDraft, saveDraftFromTypeInvoice, restoreDraft,
+    openOrderTypeModal, closeOrderTypeModal, confirmOrderType, shiftHourlySales, openPaymentTypeModal,
+    closePaymentTypeModal, confirmPaymentType, changeChartType, renderBarChart, renderLineChart,
+    renderPieChart, openTableSelectionModal, closeTableSelectionModal, selectTableAndOpenOrder,
+});
+
 // On load
 (async function init() {
-    await fetchEnvFile();
-
     await loadInvoicesFromServer();
     await loadDraftsFromServer();
-
     if (sessionStorage.getItem('bb_logged_in') !== 'true') {
         showLoginModal();
-        showView('pos'); // Show POS view if not logged in
+        showView('pos');
     } else {
         const up = document.getElementById('up-arrow');
         if (up) up.style.display = 'flex';
-        showView('dashboard'); // Show dashboard by default for logged-in users
+        showView('dashboard');
     }
 
     renderProducts();
@@ -1839,18 +2223,3 @@ function shiftHourlySales(direction) { // 1 for prev/left (earlier), -1 for next
     window.openZomato = () => window.open('https://www.zomato.com/restaurants', '_blank', 'noopener');
     window.openSwiggy = () => window.open('https://www.swiggy.com/restaurants', '_blank', 'noopener');
 })();
-
-// Global function assignments
-Object.assign(window, {
-    showView, renderDashboard,
-    previewStoredInvoice, deleteInvoice, openAdmin, closeAdmin, showProductForm, hideProductForm,
-    saveProduct, editProduct, deleteProduct, restoreDefaults, generateInvoice, exportInvoicePDF,
-    closeInvoiceModal, viewInvoices, showDailyReport, showMonthlyReport, downloadAllReports,
-    clearCart, addToCart, updateQty, removeFromCart, printInvoice, openWAModal, closeWAModal,
-    sendPdfToWhatsapp, openQuickReport, openFoodOrder, closeFoodOrder, closeQuickReport,
-    getTodayInvoices, getYesterdayInvoices, copyToClipboard, showTodayCount, showTodayInvoiceNumbers,
-    showTodayBusiness, showYesterdayBusiness, openTypeInvoiceModal, closeTypeInvoiceModal,
-    finalizeTypeInvoice, _typeInvoiceState, aiCorrectName, batchCorrectNames, _validateTypeInvoiceLines,
-    openDraftsModal, closeDraftsModal, editDraft, deleteDraft, saveDraftFromTypeInvoice, restoreDraft,
-    openOrderTypeModal, closeOrderTypeModal, confirmOrderType, shiftHourlySales
-});
