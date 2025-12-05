@@ -1,0 +1,2898 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Billing & Invoicing</title>
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='6' y='4' width='20' height='24' rx='2' fill='%23dc2626'/><rect x='9' y='8' width='14' height='2' fill='white'/><rect x='9' y='12' width='14' height='2' fill='white'/><rect x='9' y='16' width='10' height='2' fill='white'/><path d='M6 28 L8 26 L10 28 L12 26 L14 28 L16 26 L18 28 L20 26 L22 28 L24 26 L26 28' stroke='%23dc2626' fill='none' stroke-width='2'/></svg>" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --bg: #f8f9fa;
+            --card: #ffffff;
+            --accent: #C81E3A;
+            --accent-gradient: linear-gradient(135deg, #C81E3A, #A01528);
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --border-color: #dee2e6;
+            --shadow: 0 6px 24px rgba(0, 0, 0, 0.07);
+            --success: #198754;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+            background: var(--bg);
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            min-height: 100vh;
+            padding: 28px;
+        }
+
+        /* Enhanced Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: -1000px 0;
+            }
+
+            100% {
+                background-position: 1000px 0;
+            }
+        }
+
+        @keyframes bounce {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 8px 20px rgba(200, 30, 58, 0.35);
+            }
+
+            50% {
+                box-shadow: 0 8px 30px rgba(200, 30, 58, 0.5);
+            }
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes ripple-animation {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+
+        @keyframes successPulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.7);
+            }
+
+            50% {
+                box-shadow: 0 0 0 10px rgba(25, 135, 84, 0);
+            }
+        }
+
+        @keyframes selectPulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.1);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 24px;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .logo {
+            width: 56px;
+            height: 56px;
+            border-radius: 10px;
+            background: var(--accent-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 6px 18px rgba(200, 30, 58, 0.3);
+            font-weight: 700;
+            font-size: 24px;
+            color: white;
+            transition: transform 0.3s ease;
+        }
+
+        .logo:hover {
+            transform: rotate(360deg) scale(1.1);
+        }
+
+        h1 {
+            font-size: 22px;
+            margin: 0;
+            color: var(--text-primary);
+        }
+
+        h2,
+        h3,
+        h4 {
+            color: var(--text-primary);
+        }
+
+        p.subtitle {
+            margin: 4px 0 0;
+            color: var(--text-secondary);
+            font-size: 14px
+        }
+
+        .top-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        /* Icon styles */
+        .btn-icon {
+            width: 18px;
+            height: 18px;
+            margin-right: 8px;
+            transition: transform 0.3s ease;
+        }
+
+        button:hover .btn-icon {
+            transform: scale(1.2) rotate(5deg);
+        }
+
+        /* Enhanced button styles */
+        button.primary {
+            background: var(--accent-gradient);
+            color: #ffffff;
+            border: 0;
+            padding: 12px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(200, 30, 58, 0.3);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button.primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        button.primary:hover::before {
+            left: 100%;
+        }
+
+        button.primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(200, 30, 58, 0.4);
+        }
+
+        button.primary:active {
+            transform: translateY(-1px) scale(0.98);
+        }
+
+        button.ghost {
+            background: transparent;
+            border: 2px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button.ghost:hover {
+            background: linear-gradient(135deg, rgba(200, 30, 58, 0.1), rgba(160, 21, 40, 0.05));
+            border-color: var(--accent);
+            color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(200, 30, 58, 0.15);
+        }
+
+        button.ghost:active {
+            transform: translateY(0);
+        }
+
+        /* Ripple effect */
+        .ripple {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ripple-effect {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.6);
+            transform: scale(0);
+            animation: ripple-animation 0.6s ease-out;
+            pointer-events: none;
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: relative;
+        }
+
+        .tooltip::before {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%) scale(0);
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            transition: all 0.3s ease;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .tooltip:hover::before {
+            transform: translateX(-50%) scale(1);
+            opacity: 1;
+        }
+
+        /* Gradient text */
+        .gradient-text {
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 24px;
+            align-items: start;
+        }
+
+        .panel {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            animation: fadeInUp 0.6s ease-out backwards;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .panel:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .products {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .card {
+            background: var(--card);
+            padding: 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: var(--text-primary);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            position: relative;
+            animation: fadeInUp 0.5s ease-out backwards;
+        }
+
+        .card:nth-child(1) {
+            animation-delay: 0.05s;
+        }
+
+        .card:nth-child(2) {
+            animation-delay: 0.1s;
+        }
+
+        .card:nth-child(3) {
+            animation-delay: 0.15s;
+        }
+
+        .card:nth-child(4) {
+            animation-delay: 0.2s;
+        }
+
+        .card:nth-child(5) {
+            animation-delay: 0.25s;
+        }
+
+        .card:nth-child(6) {
+            animation-delay: 0.3s;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, transparent, rgba(200, 30, 58, 0.05));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            border-radius: 12px;
+            pointer-events: none;
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 3px;
+            background: var(--accent-gradient);
+            transition: width 0.3s ease;
+        }
+
+        .card:hover::after {
+            width: 100%;
+        }
+
+        .card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+            border-color: var(--accent);
+        }
+
+        .thumb {
+            width: 68px;
+            height: 68px;
+            border-radius: 10px;
+            overflow: hidden;
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover .thumb img {
+            transform: scale(1.1);
+        }
+
+        .meta {
+            flex: 1
+        }
+
+        .meta h3 {
+            margin: 0;
+            font-size: 15px
+        }
+
+        .meta p {
+            margin: 6px 0 0;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .price {
+            font-weight: 700;
+            color: var(--text-primary);
+            font-size: 15px
+        }
+
+        .cart-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .cart-items {
+            max-height: 420px;
+            overflow: auto;
+            padding-right: 8px;
+        }
+
+        .item-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            padding: 8px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .item-row:hover {
+            background: var(--bg);
+            transform: translateX(4px);
+        }
+
+        .item-row .itm-thumb {
+            width: 56px;
+            height: 56px;
+            border-radius: 8px;
+            overflow: hidden
+        }
+
+        .item-row img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover
+        }
+
+        .item-info {
+            flex: 1
+        }
+
+        .item-info h4 {
+            margin: 0;
+            font-size: 14px
+        }
+
+        .item-info p {
+            margin: 4px 0 0;
+            color: var(--text-secondary);
+            font-size: 13px
+        }
+
+        .qty-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: var(--card);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 14px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        input:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px rgba(200, 30, 58, 0.15);
+            transform: translateY(-2px);
+            background: linear-gradient(to bottom, #ffffff, #fafafa);
+        }
+
+        .qty-controls input {
+            width: 56px;
+            text-align: center;
+            padding: 6px;
+        }
+
+        .small-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            padding: 8px;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .small-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .summary {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px dashed var(--border-color);
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+        }
+
+        .total {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 700;
+            font-size: 18px;
+            margin-top: 8px
+        }
+
+        .right-col {
+            display: flex;
+            flex-direction: column;
+            gap: 12px
+        }
+
+        .product-list {
+            margin-top: 8px;
+            max-height: 210px;
+            overflow: auto
+        }
+
+        .prod-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: var(--bg);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .prod-row:hover {
+            transform: translateX(4px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .prod-row .controls button {
+            margin-left: 6px
+        }
+
+        .invoice {
+            background: white;
+            color: #000000;
+            border-radius: 8px;
+            padding: 14px;
+            margin-top: 12px;
+            font-size: 13px;
+        }
+
+        .invoice h2 {
+            margin: 0 0 6px 0;
+            color: #000000
+        }
+
+        .inv-items {
+            margin-top: 8px;
+            border-top: 1px dashed #eee;
+            padding-top: 8px
+        }
+
+        .inv-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px
+        }
+
+        .muted-note {
+            color: var(--text-secondary);
+            font-size: 13px;
+            margin-top: 8px
+        }
+
+        .report-box {
+            padding: 10px;
+            border-radius: 8px;
+            background: var(--card);
+            border: 1px solid var(--border-color);
+        }
+
+        #login-modal,
+        #logout-modal,
+        #invoice-modal,
+        #wa-modal,
+        #admin-modal,
+        #quick-report-modal,
+        #food-order-modal,
+        #type-invoice-modal,
+        #order-type-modal,
+        #payment-type-modal,
+        #drafts-modal,
+        #table-selection-modal,
+        #product-sales-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+            z-index: 200;
+            backdrop-filter: blur(4px);
+        }
+
+        .login-panel,
+        .logout-panel,
+        .wa-modal-panel,
+        #admin-modal>div,
+        #quick-report-modal>div,
+        #food-order-modal>div,
+        #type-invoice-modal>div {
+            width: auto;
+            max-width: 96%;
+            background: var(--card);
+            border-radius: 12px;
+            padding: 18px;
+            border: none;
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.2);
+            color: var(--text-primary);
+            animation: scaleIn 0.3s ease-out;
+        }
+
+        .login-panel {
+            width: 420px;
+        }
+
+        .logout-panel {
+            width: 360px;
+            text-align: center;
+        }
+
+        .wa-modal-panel {
+            width: 420px;
+        }
+
+        #admin-modal>div {
+            width: 860px;
+            padding: 14px;
+        }
+
+        #quick-report-modal>div,
+        #food-order-modal>div {
+            width: 420px;
+            padding: 14px;
+        }
+
+        #type-invoice-modal>div {
+            width: 680px;
+            padding: 14px;
+        }
+
+        .login-panel h2 {
+            margin: 0 0 8px 0;
+            font-size: 20px;
+        }
+
+        .login-panel p,
+        .logout-panel p {
+            margin: 0 0 12px 0;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .login-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 12px;
+        }
+
+        .logout-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        input::placeholder,
+        textarea::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.8;
+        }
+
+        /* Dashboard styles */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+        }
+
+        .stat-card {
+            position: relative;
+            overflow: hidden;
+            animation: scaleIn 0.6s ease-out backwards;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .stat-card:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+
+        .stat-card:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .stat-card:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        .stat-card:nth-child(4) {
+            animation-delay: 0.4s;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(200, 30, 58, 0.1) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .stat-card:hover::before {
+            opacity: 1;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 28px rgba(200, 30, 58, 0.15);
+        }
+
+        .stat-card .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: var(--accent-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+            box-shadow: 0 4px 12px rgba(200, 30, 58, 0.25);
+            animation: bounce 2s infinite;
+        }
+
+        .stat-card h4 {
+            margin: 0;
+            font-size: 15px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .stat-card p {
+            margin: 8px 0 0;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        #db-sales-chart {
+            height: 320px;
+        }
+
+        /* Business Assistant */
+        .business-assistant {
+            position: fixed;
+            right: 24px;
+            bottom: 24px;
+            z-index: 200;
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            pointer-events: none;
+            font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+        }
+
+        .ba-pill {
+            background: var(--card);
+            color: var(--text-primary);
+            border-radius: 999px;
+            padding: 10px 14px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            box-shadow: var(--shadow);
+            pointer-events: auto;
+            border: 1px solid var(--border-color);
+            animation: slideInRight 0.5s ease-out;
+        }
+
+        .ba-pill .ba-label {
+            font-weight: 700;
+            font-size: 14px;
+            white-space: nowrap;
+            color: var(--text-primary);
+        }
+
+        .ba-btn,
+        #up-arrow {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--accent-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 0;
+            box-shadow: 0 8px 20px rgba(200, 30, 58, 0.35);
+            color: white;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: pulse 2s infinite;
+        }
+
+        .ba-btn:hover,
+        #up-arrow:hover {
+            transform: scale(1.1) rotate(5deg);
+            box-shadow: 0 12px 28px rgba(200, 30, 58, 0.45);
+        }
+
+        #up-arrow {
+            position: fixed;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 20px;
+            z-index: 250;
+            width: 56px;
+            height: 56px;
+        }
+
+        #up-arrow {
+            position: fixed;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 20px;
+            z-index: 250;
+            width: 56px;
+            height: 56px;
+            transition: filter 0.3s ease, opacity 0.3s ease;
+        }
+
+        /* Blur up arrow when modals are open */
+        body:has(#login-modal[style*="display: flex"]) #up-arrow,
+        body:has(#logout-modal[style*="display: flex"]) #up-arrow,
+        body:has(#invoice-modal[style*="display: flex"]) #up-arrow,
+        body:has(#wa-modal[style*="display: flex"]) #up-arrow,
+        body:has(#admin-modal[style*="display: flex"]) #up-arrow,
+        body:has(#quick-report-modal[style*="display: flex"]) #up-arrow,
+        body:has(#food-order-modal[style*="display: flex"]) #up-arrow,
+        body:has(#type-invoice-modal[style*="display: flex"]) #up-arrow,
+        body:has(#order-type-modal[style*="display: flex"]) #up-arrow,
+        body:has(#payment-type-modal[style*="display: flex"]) #up-arrow,
+        body:has(#drafts-modal[style*="display: flex"]) #up-arrow,
+        body:has(#table-selection-modal[style*="display: flex"]) #up-arrow,
+        body:has(#product-sales-modal[style*="display: flex"]) #up-arrow {
+            filter: blur(4px);
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        .ba-btn:active,
+        #up-arrow:active {
+            transform: scale(.98);
+        }
+
+        .ba-window {
+            width: 320px;
+            max-width: calc(100vw - 48px);
+            background: var(--card);
+            color: var(--text-primary);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            pointer-events: auto;
+            font-size: 14px;
+            border: 1px solid var(--border-color);
+            animation: scaleIn 0.3s ease-out;
+        }
+
+        .ba-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: var(--bg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .ba-header .ba-head-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: var(--accent-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+        }
+
+        .ba-header .ba-head-info {
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .ba-header .ba-head-title,
+        .ba-header .ba-head-sub,
+        .ba-close-btn {
+            color: var(--text-primary);
+        }
+
+        .ba-close-btn {
+            background: transparent;
+            border: 0;
+            cursor: pointer;
+            font-size: 18px;
+            transition: transform 0.3s ease;
+        }
+
+        .ba-close-btn:hover {
+            transform: rotate(90deg);
+        }
+
+        .ba-messages {
+            padding: 10px;
+            height: 260px;
+            overflow: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: var(--bg);
+        }
+
+        .ba-msg {
+            max-width: 80%;
+            padding: 8px 10px;
+            border-radius: 8px;
+            line-height: 1.25;
+            font-size: 13px;
+            animation: fadeInUp 0.3s ease-out;
+        }
+
+        .ba-msg.user {
+            align-self: flex-end;
+            background: #cfe2ff;
+            color: var(--text-primary);
+        }
+
+        .ba-msg.bot {
+            align-self: flex-start;
+            background: #e9ecef;
+            color: var(--text-primary);
+        }
+
+        .ba-input {
+            display: flex;
+            gap: 8px;
+            padding: 10px;
+            border-top: 1px solid var(--border-color);
+            background: var(--card);
+        }
+
+        .ba-input input {
+            flex: 1;
+            padding: 10px;
+        }
+
+        .ba-input button {
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: var(--accent-gradient);
+            color: #ffffff;
+            border: 0;
+            cursor: pointer;
+            font-weight: 700;
+            transition: all 0.3s ease;
+        }
+
+        .ba-input button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(200, 30, 58, 0.3);
+        }
+
+        .ba-default-actions {
+            display: flex;
+            gap: 8px;
+            padding: 10px;
+            flex-wrap: wrap;
+            border-top: 1px solid #eee;
+            background: transparent;
+        }
+
+        .ba-action-btn {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+        }
+
+        .ba-action-btn:hover {
+            background: var(--bg);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* Table grid */
+        .table-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+        }
+
+        .table-box {
+            padding: 12px 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--card);
+            cursor: pointer;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .table-box:hover:not(:disabled) {
+            border-color: var(--accent);
+            color: var(--accent);
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(200, 30, 58, 0.2);
+        }
+
+        .table-box.selected {
+            background: var(--accent-gradient);
+            color: white;
+            border-color: var(--accent);
+            box-shadow: 0 4px 12px rgba(200, 30, 58, 0.3);
+            animation: selectPulse 0.3s ease-out;
+        }
+
+        .table-box.occupied {
+            background: #e9ecef;
+            color: var(--text-secondary);
+            cursor: not-allowed;
+            border-color: transparent;
+        }
+
+        /* Chart type selector buttons */
+        .chart-type-btn {
+            background: transparent;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chart-type-btn:hover {
+            background: rgba(200, 30, 58, 0.1);
+            color: var(--accent);
+        }
+
+        .chart-type-btn.active {
+            background: var(--accent-gradient);
+            color: white;
+            box-shadow: 0 2px 8px rgba(200, 30, 58, 0.3);
+        }
+
+        /* Scrollbar styles */
+        .cart-items::-webkit-scrollbar,
+        .product-list::-webkit-scrollbar,
+        .ba-messages::-webkit-scrollbar {
+            height: 6px;
+            width: 6px;
+        }
+
+        .cart-items::-webkit-scrollbar-thumb,
+        .product-list::-webkit-scrollbar-thumb,
+        .ba-messages::-webkit-scrollbar-thumb {
+            background: #ced4da;
+            border-radius: 6px;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        .success-pulse {
+            animation: successPulse 2s infinite;
+        }
+
+        /* Responsive */
+        @media (max-width:1200px) {
+            .container {
+                padding: 20px;
+            }
+
+            .products {
+                grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            }
+
+            .dashboard-grid {
+                grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            }
+        }
+
+        @media (max-width:980px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .right-col {
+                order: -1
+            }
+
+            header {
+                align-items: flex-start;
+            }
+
+            .top-actions {
+                width: 100%;
+                justify-content: flex-end;
+            }
+        }
+
+        @media (max-width:768px) {
+            body {
+                padding: 18px;
+            }
+
+            .panel {
+                padding: 16px;
+            }
+
+            .products {
+                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            }
+        }
+
+        @media (max-width:480px) {
+            body {
+                padding: 14px;
+            }
+
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .top-actions {
+                justify-content: flex-start;
+                gap: 6px;
+            }
+
+            .products {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .ba-pill {
+                display: none;
+            }
+
+            .ba-window {
+                width: calc(100vw - 32px);
+                right: 16px;
+                bottom: 80px;
+            }
+        }
+
+        #table-selection-grid .table-box {
+            min-height: 70px;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        #table-selection-grid .table-box:not(:disabled):hover {
+            transform: translateY(-4px) scale(1.05);
+        }
+
+        /* Enhanced Table Selection Modal */
+        #table-selection-modal .table-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 16px;
+            padding: 8px;
+        }
+
+        #table-selection-modal .table-box {
+            min-height: 100px;
+            padding: 16px 12px;
+            border: 2px solid transparent;
+            border-radius: 12px;
+            background: #f8f9fa;
+            cursor: pointer;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        /* Available tables - Light Blue */
+        #table-selection-modal .table-box.available {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border-color: #90caf9;
+        }
+
+        #table-selection-modal .table-box.available:hover {
+            background: linear-gradient(135deg, #bbdefb 0%, #90caf9 100%);
+            transform: translateY(-4px) scale(1.03);
+            box-shadow: 0 8px 20px rgba(33, 150, 243, 0.3);
+            border-color: #42a5f5;
+        }
+
+        /* Occupied tables - Light Green */
+        #table-selection-modal .table-box.occupied {
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            border-color: #81c784;
+            cursor: not-allowed;
+            opacity: 0.9;
+        }
+
+        /* Remove reserved styles completely */
+
+        /* Table status badge */
+        .table-status-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .table-status-badge.available {
+            background: #4caf50;
+            box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+        }
+
+        .table-status-badge.occupied {
+            background: #f44336;
+            box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7);
+        }
+
+        /* Table number styling */
+        .table-number {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1a237e;
+            margin-bottom: 4px;
+        }
+
+        /* Table capacity icon */
+        .table-capacity {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: #546e7a;
+        }
+
+        .table-capacity svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        /* Table actions */
+        .table-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        #table-selection-modal .table-box:hover .table-actions {
+            opacity: 1;
+        }
+
+        .table-action-btn {
+            padding: 4px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .table-action-btn:hover {
+            background: white;
+            transform: scale(1.1);
+        }
+
+        .table-action-btn svg {
+            width: 14px;
+            height: 14px;
+            fill: #546e7a;
+        }
+
+        /* Enhanced pulse animation */
+        @keyframes pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 currentColor;
+            }
+
+            50% {
+                box-shadow: 0 0 0 4px transparent;
+            }
+        }
+
+        /* Legend section */
+        .table-legend {
+            display: flex;
+            gap: 20px;
+            padding: 12px;
+            background: var(--bg);
+            border-radius: 8px;
+            margin-bottom: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 2px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .legend-color.available {
+            background: linear-gradient(135deg, #bbdefb 0%, #90caf9 100%);
+        }
+
+        .legend-color.occupied {
+            background: linear-gradient(135deg, #c8e6c9 0%, #81c784 100%);
+        }
+
+        /* Enhanced Type Invoice Modal */
+        #type-invoice-modal .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        #type-invoice-modal .modal-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        #type-invoice-modal .instruction-text {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-left: 4px solid var(--accent);
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+
+        #type-invoice-modal .table-info-banner {
+            background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+            border: 2px solid #86efac;
+            padding: 12px 16px;
+            border-radius: 10px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: fadeInUp 0.4s ease-out;
+        }
+
+        #type-invoice-modal .table-info-banner .table-icon {
+            width: 40px;
+            height: 40px;
+            background: white;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        #type-invoice-modal .table-info-content {
+            flex: 1;
+        }
+
+        #type-invoice-modal .table-info-content .table-label {
+            font-size: 11px;
+            color: #166534;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        #type-invoice-modal .table-info-content .table-number {
+            font-size: 18px;
+            font-weight: 700;
+            color: #15803d;
+            margin-top: 2px;
+        }
+
+        .btn-table-swap {
+            background: white;
+            border: 2px solid #86efac;
+            color: #15803d;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-table-swap:hover {
+            background: #f0fdf4;
+            border-color: #4ade80;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
+        }
+
+        #type-invoice-modal .validation-result {
+            background: var(--bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px;
+            margin-top: 12px;
+        }
+
+        #type-invoice-modal .validation-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 12px;
+            border-bottom: 1px dashed #e5e7eb;
+            transition: background 0.2s ease;
+        }
+
+        #type-invoice-modal .validation-item:last-child {
+            border-bottom: none;
+        }
+
+        #type-invoice-modal .validation-item:hover {
+            background: rgba(200, 30, 58, 0.03);
+        }
+
+        #type-invoice-modal .validation-item.valid {
+            background: linear-gradient(90deg, #f0fdf4 0%, transparent 100%);
+        }
+
+        #type-invoice-modal .validation-item.invalid {
+            background: linear-gradient(90deg, #fef2f2 0%, transparent 100%);
+        }
+
+        #type-invoice-modal .status-badge {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        #type-invoice-modal .status-badge.available {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        #type-invoice-modal .status-badge.unavailable {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Enhanced Drafts Modal */
+        #drafts-modal .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        #drafts-modal .modal-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        #drafts-modal .draft-card {
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: fadeInUp 0.4s ease-out backwards;
+        }
+
+        #drafts-modal .draft-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            border-color: var(--accent);
+        }
+
+        #drafts-modal .draft-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        #drafts-modal .draft-meta {
+            flex: 1;
+        }
+
+        #drafts-modal .draft-date {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        #drafts-modal .draft-table {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        #drafts-modal .draft-table-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--accent-gradient);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        #drafts-modal .draft-table-text {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        #drafts-modal .draft-customer {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-left: 40px;
+        }
+
+        #drafts-modal .draft-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        #drafts-modal .draft-actions button {
+            padding: 8px 14px;
+            font-size: 13px;
+        }
+
+        /* Enhanced Product Sales Modal */
+        #product-sales-modal {
+            backdrop-filter: blur(8px);
+        }
+
+        #product-sales-modal .modal-content {
+            background: linear-gradient(to bottom, #ffffff, #f8f9fa);
+        }
+
+        /* Summary Cards at Top */
+        .sales-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+            padding: 16px;
+            background: linear-gradient(135deg, #fff5f7 0%, #ffe3e8 100%);
+            border-radius: 12px;
+            border: 2px solid #ffc9d3;
+        }
+
+        .summary-stat-card {
+            background: white;
+            padding: 16px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+        }
+
+        .summary-stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 6px 16px rgba(200, 30, 58, 0.15);
+        }
+
+        .summary-stat-card .stat-icon-wrapper {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 12px;
+            background: var(--accent-gradient);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(200, 30, 58, 0.25);
+        }
+
+        .summary-stat-card .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .summary-stat-card .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Filter and Sort Controls */
+        .sales-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            padding: 16px;
+            background: var(--bg);
+            border-radius: 10px;
+        }
+
+        .sales-controls select {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: white;
+            color: var(--text-primary);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .sales-controls select:hover {
+            border-color: var(--accent);
+        }
+
+        .sales-controls select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px rgba(200, 30, 58, 0.15);
+        }
+
+        .view-toggle {
+            display: flex;
+            gap: 4px;
+            background: white;
+            padding: 4px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .view-toggle button {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .view-toggle button.active {
+            background: var(--accent-gradient);
+            color: white;
+            box-shadow: 0 2px 8px rgba(200, 30, 58, 0.3);
+        }
+
+        /* Enhanced Product Cards */
+        .product-sales-item {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+            border-radius: 14px;
+            background: white;
+            border: 2px solid transparent;
+            margin-bottom: 16px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .product-sales-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--accent-gradient);
+            transform: scaleY(0);
+            transition: transform 0.3s ease;
+        }
+
+        .product-sales-item:hover::before {
+            transform: scaleY(1);
+        }
+
+        .product-sales-item:hover {
+            transform: translateX(8px);
+            border-color: var(--accent);
+            box-shadow: 0 8px 24px rgba(200, 30, 58, 0.15);
+        }
+
+        .product-sales-item .rank-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: linear-gradient(135deg, #ffd700, #ffed4e);
+            color: #8b6914;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 8px rgba(255, 215, 0, 0.4);
+        }
+
+        .product-sales-item.rank-1 .rank-badge {
+            background: linear-gradient(135deg, #ffd700, #ffed4e);
+        }
+
+        .product-sales-item.rank-2 .rank-badge {
+            background: linear-gradient(135deg, #c0c0c0, #e8e8e8);
+            color: #5a5a5a;
+        }
+
+        .product-sales-item.rank-3 .rank-badge {
+            background: linear-gradient(135deg, #cd7f32, #e8a87c);
+            color: #3d2817;
+        }
+
+        .product-image-wrapper {
+            width: 120px;
+            height: 120px;
+            border-radius: 12px;
+            overflow: hidden;
+            flex-shrink: 0;
+            background: var(--bg);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .product-image-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.4s ease;
+        }
+
+        .product-sales-item:hover .product-image-wrapper img {
+            transform: scale(1.1) rotate(2deg);
+        }
+
+        .product-sales-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .product-name-section {
+            margin-bottom: 16px;
+        }
+
+        .product-name-section h4 {
+            margin: 0 0 8px 0;
+            font-size: 18px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .trending-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            background: #dcfce7;
+            color: #166534;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .product-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .stat-box {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .stat-box:hover {
+            background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .stat-box .stat-icon {
+            width: 32px;
+            height: 32px;
+            margin: 0 auto 8px;
+            background: white;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .stat-box .stat-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .stat-box .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .stat-box.revenue .stat-value {
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Progress Bar for Performance */
+        .performance-bar {
+            margin-top: 12px;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .performance-bar-fill {
+            height: 100%;
+            background: var(--accent-gradient);
+            border-radius: 4px;
+            transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .performance-bar-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        /* Grid View Option */
+        .sales-grid-view {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .sales-grid-view .product-sales-item {
+            flex-direction: column;
+            padding: 16px;
+        }
+
+        .sales-grid-view .product-image-wrapper {
+            width: 100%;
+            height: 180px;
+            margin-bottom: 12px;
+        }
+
+        .sales-grid-view .product-stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        /* Empty State */
+        .empty-sales-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .empty-sales-state svg {
+            width: 120px;
+            height: 120px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        .empty-sales-state h4 {
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .empty-sales-state p {
+            color: var(--text-secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .product-stats-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .product-sales-item {
+                flex-direction: column;
+            }
+
+            .product-image-wrapper {
+                width: 100%;
+                height: 200px;
+            }
+
+            .sales-summary-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="brand">
+                <div class="logo">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
+                        <path
+                            d="M20 6h-2.18c.11-.31.18-.65.18-1a2.996 2.996 0 0 0-5.5-1.65l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 15H4v-2h16v2zm0-5H4V8h5.08L7 10.83 8.62 12 11 8.76l1-1.36 1 1.36L15.38 12 17 10.83 14.92 8H20v6z" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 id="page-title" class="gradient-text">Point of Sale</h1>
+                    <p class="subtitle" id="page-subtitle">Manage orders, download invoices, and view reports</p>
+                </div>
+            </div>
+            <div class="top-actions">
+                <button class="ghost ripple tooltip" onclick="showView('dashboard')" data-tooltip="View Dashboard">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+                    </svg>
+                    Dashboard
+                </button>
+                <button class="ghost ripple tooltip" onclick="showView('pos')" data-tooltip="Point of Sale">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M17 2H7c-1.1 0-2 .9-2 2v2c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 4H7V4h10v2zm3 16H4c-1.1 0-2-.9-2-2v-1h20v1c0 1.1-.9 2-2 2zm-1.47-11.81A2.008 2.008 0 0 0 16.7 9H7.3c-.79 0-1.51.47-1.83 1.19L2 18h20l-3.47-7.81z" />
+                    </svg>
+                    POS
+                </button>
+                <!-- <button class="primary ripple tooltip" onclick="openTypeInvoiceModal()" data-tooltip="New Table Order">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="white">
+                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                    </svg>
+                    Place Table Order
+                </button> -->
+                <button class="primary ripple tooltip" onclick="openTableSelectionModal()"
+                    data-tooltip="New Table Order">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="white">
+                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                    </svg>
+                    Place Table Order
+                </button>
+                <button class="ghost ripple tooltip" onclick="openDraftsModal()" data-tooltip="View Saved Drafts">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
+                    </svg>
+                    Drafts
+                </button>
+                <button class="ghost ripple tooltip" onclick="downloadAllReports()" data-tooltip="Export All Data">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z" />
+                    </svg>
+                    Export Reports
+                </button>
+            </div>
+        </header>
+
+        <div id="dashboard-view" style="display: none;">
+            <div class="dashboard-grid">
+                <div class="panel stat-card">
+                    <div class="stat-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                            <path
+                                d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z" />
+                        </svg>
+                    </div>
+                    <h4>Today's Revenue</h4>
+                    <p id="db-today-revenue">₹0</p>
+                </div>
+                <div class="panel stat-card">
+                    <div class="stat-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                            <path
+                                d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
+                        </svg>
+                    </div>
+                    <h4>Today's Invoices</h4>
+                    <p id="db-today-invoices">0</p>
+                </div>
+                <div class="panel stat-card">
+                    <div class="stat-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                            <path
+                                d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z" />
+                        </svg>
+                    </div>
+                    <h4>This Month's Revenue</h4>
+                    <p id="db-month-revenue">₹0</p>
+                </div>
+                <div class="panel stat-card" onclick="showProductSalesModal()" style="cursor: pointer;">
+                    <div class="stat-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                            <path
+                                d="M20 6h-2.18c.11-.31.18-.65.18-1a2.996 2.996 0 0 0-5.5-1.65l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 15H4v-2h16v2zm0-5H4V8h5.08L7 10.83 8.62 12 11 8.76l1-1.36 1 1.36L15.38 12 17 10.83 14.92 8H20v6z" />
+                        </svg>
+                    </div>
+                    <h4>Total Products</h4>
+                    <p id="db-total-products">0</p>
+                </div>
+            </div>
+
+            <!-- Today's Hourly Sales Chart - Now takes full width -->
+            <div class="panel" style="margin-top: 24px;">
+                <div
+                    style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:12px;">
+                    <h3 style="margin:0;">Today's Hourly Sales</h3>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <!-- Chart Type Selector -->
+                        <div
+                            style="display:flex;gap:4px;background:var(--bg);padding:4px;border-radius:8px;border:1px solid var(--border-color);">
+                            <button class="chart-type-btn active" data-chart-type="bar" onclick="changeChartType('bar')"
+                                title="Bar Chart">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M5 9.2h3V19H5zM10.6 5h2.8v14h-2.8zm5.6 8H19v6h-2.8z" />
+                                </svg>
+                            </button>
+                            <button class="chart-type-btn" data-chart-type="line" onclick="changeChartType('line')"
+                                title="Line Chart">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z" />
+                                </svg>
+                            </button>
+                            <button class="chart-type-btn" data-chart-type="pie" onclick="changeChartType('pie')"
+                                title="Pie Chart">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path
+                                        d="M11 2v20c-5.07-.5-9-4.79-9-10s3.93-9.5 9-10zm2.03 0v8.99H22c-.47-4.74-4.24-8.52-8.97-8.99zm0 11.01V22c4.74-.47 8.5-4.25 8.97-8.99h-8.97z" />
+                                </svg>
+                            </button>
+                        </div>
+                        <!-- Navigation Buttons -->
+                        <div>
+                            <button class="ghost ripple" id="prev-hour-btn" onclick="shiftHourlySales(1)"
+                                title="Previous Hours" style="padding:6px 10px;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+                                </svg>
+                            </button>
+                            <button class="ghost ripple" id="next-hour-btn" onclick="shiftHourlySales(-1)"
+                                title="Next Hours" style="padding:6px 10px;margin-left:4px;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div id="db-sales-chart">
+                    <div class="muted-note">Loading sales data...</div>
+                </div>
+            </div>
+        </div>
+
+        <main id="pos-view" class="grid" style="display: none;">
+            <section class="panel">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                    <div>
+                        <h2 style="margin:0">Products</h2>
+                        <p class="muted-note">Click a product to add it to the cart</p>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center">
+                        <input id="search" placeholder="Search product..." oninput="renderProducts()"
+                            style="width:180px;" />
+                        <button class="ghost ripple tooltip" onclick="restoreDefaults()"
+                            title="Restore default product list" data-tooltip="Restore Defaults">
+                            <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path
+                                    d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" />
+                            </svg>
+                            Restore
+                        </button>
+                    </div>
+                </div>
+                <div id="products" class="products">
+                    <!-- products rendered here -->
+                </div>
+            </section>
+
+            <aside>
+                <div class="right-col">
+                    <div class="panel">
+                        <div class="cart-title">
+                            <div>
+                                <h3 style="margin:0">Cart</h3>
+                                <p class="muted-note" id="cart-count">0 items</p>
+                            </div>
+                            <div style="display:flex; gap: 8px;">
+                                <button class="ghost ripple" onclick="clearCart()">
+                                    <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                                        <path
+                                            d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+                                    </svg>
+                                    Clear
+                                </button>
+                                <button class="primary ripple" onclick="openOrderTypeModal('cart')"
+                                    id="gen-invoice-btn">
+                                    <svg class="btn-icon" viewBox="0 0 24 24" fill="white">
+                                        <path
+                                            d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
+                                    </svg>
+                                    Invoice
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="cart-items" id="cart-items">
+                            <!-- cart items -->
+                        </div>
+                        <div class="summary">
+                            <div class="summary-row"><span>Subtotal</span><span id="subtotal">₹0</span></div>
+                            <div class="summary-row"><span>Taxes</span><span>—</span></div>
+                            <div class="summary-row"><span>Discounts</span><span>—</span></div>
+                            <div class="total"><span>Total</span><span id="total">₹0</span></div>
+                        </div>
+
+                        <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px">
+                            <input id="customer-name" placeholder="Customer Name (Optional)"
+                                oninput="filterName(this)" />
+                            <input id="customer-phone" placeholder="Customer Phone (Optional)"
+                                oninput="filterPhone(this)" maxlength="10" inputmode="numeric" pattern="\d{10}" />
+                        </div>
+
+                        <div class="muted-note" style="margin-top:16px;">Invoices are stored in your assigned storage.
+                        </div>
+                    </div>
+
+                    <div class="panel report-box">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                            <h3 style="margin:0">Reports</h3>
+                            <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                                <button class="ghost ripple" onclick="showDailyReport()"
+                                    style="padding:8px 12px;font-size:13px;">
+                                    <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor"
+                                        style="width:14px;height:14px;margin-right:4px;">
+                                        <path
+                                            d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z" />
+                                    </svg>
+                                    Daily
+                                </button>
+                                <button class="ghost ripple" onclick="showMonthlyReport()"
+                                    style="padding:8px 12px;font-size:13px;">
+                                    <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor"
+                                        style="width:14px;height:14px;margin-right:4px;">
+                                        <path
+                                            d="M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V8h16v13z" />
+                                    </svg>
+                                    Monthly
+                                </button>
+                                <button class="ghost ripple" onclick="viewInvoices()"
+                                    style="padding:8px 12px;font-size:13px;">
+                                    <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor"
+                                        style="width:14px;height:14px;margin-right:4px;">
+                                        <path
+                                            d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm0 4c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm6 12H6v-1.4c0-2 4-3.1 6-3.1s6 1.1 6 3.1V19z" />
+                                    </svg>
+                                    Invoices
+                                </button>
+                            </div>
+                        </div>
+                        <div id="report-area" style="margin-top:12px">
+                            <div class="muted-note">Select a report type to view details.</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="admin-modal" style="z-index: 210;">
+        <div style="padding:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+                <h3 style="margin:0">Manage Products</h3>
+                <div style="display:flex;gap:8px">
+                    <button class="ghost ripple" onclick="closeAdmin()">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                        </svg>
+                        Close
+                    </button>
+                    <button class="primary ripple" onclick="showProductForm()">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="white">
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                        </svg>
+                        Add Product
+                    </button>
+                </div>
+            </div>
+            <div style="display:flex;gap:12px;margin-top:10px">
+                <div style="flex:1">
+                    <div class="product-list" id="admin-product-list"></div>
+                </div>
+                <div style="width:360px">
+                    <div id="product-form"
+                        style="display:none;padding:10px;border-radius:8px;background:var(--bg);border:1px solid var(--border-color);">
+                        <h4 id="pf-title">Add Product</h4>
+                        <div style="display:flex; flex-direction:column; gap: 8px; margin-top:8px;">
+                            <input id="pf-name" placeholder="Product name" />
+                            <input id="pf-price" placeholder="Price (INR)" type="number" />
+                            <input id="pf-img" placeholder="Image placeholder e.g. 400/320 (opt)" />
+                        </div>
+                        <div style="display:flex;gap:8px;margin-top:10px">
+                            <button class="primary ripple" onclick="saveProduct()">
+                                <svg class="btn-icon" viewBox="0 0 24 24" fill="white">
+                                    <path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z" />
+                                </svg>
+                                Save
+                            </button>
+                            <button class="ghost ripple" onclick="hideProductForm()">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="admin-note" class="muted-note" style="margin-top:8px;">
+                Products are stored locally in your browser. Use Restore to go back to defaults.
+            </div>
+        </div>
+    </div>
+
+    <div id="invoice-modal" style="z-index: 220;">
+        <div style="width:860px;max-width:98%;max-height:90vh;overflow:auto;background:transparent;padding:10px">
+            <div style="background:white;border-radius:8px;padding:14px;color:#111">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                    <h3 style="margin:0">Invoice Preview</h3>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <button class="ghost ripple" onclick="closeInvoiceModal()">
+                            <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path
+                                    d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                            </svg>
+                            Close
+                        </button>
+                        <button class="primary ripple" onclick="printInvoice()">
+                            <svg class="btn-icon" viewBox="0 0 24 24" fill="white">
+                                <path
+                                    d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z" />
+                            </svg>
+                            Print
+                        </button>
+                        <button class="primary ripple" onclick="exportInvoicePDF()">
+                            <svg class="btn-icon" viewBox="0 0 24 24" fill="white">
+                                <path
+                                    d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z" />
+                            </svg>
+                            Download
+                        </button>
+                        <button class="primary ripple" onclick="sendPdfToWhatsapp()">
+                            <svg class="btn-icon" viewBox="0 0 24 24" fill="white">
+                                <path
+                                    d="M16.75 13.96c.25.13.41.2.46.3.06.11.04.61-.21 1.18-.2.56-1.24 1.1-1.7 1.12-.46.02-.47.36-2.96-.73-2.49-1.09-3.99-3.75-4.11-3.92-.12-.17-.96-1.38-.92-2.61.05-1.22.69-1.8.95-2.04.24-.26.51-.29.68-.26h.47c.15 0 .36-.06.55.45l.69 1.87c.06.13.1.28.01.44l-.27.41-.39.42c-.12.12-.26.25-.12.5.12.26.62 1.09 1.32 1.78.91.88 1.71 1.17 1.95 1.3.24.14.39.12.54-.04l.81-.94c.19-.25.35-.19.58-.11l1.67.88M12 2a10 10 0 0 1 10 10 10 10 0 0 1-10 10c-1.97 0-3.8-.57-5.35-1.55L2 22l1.55-4.65A9.969 9.969 0 0 1 2 12 10 10 0 0 1 12 2m0 2a8 8 0 0 0-8 8c0 1.72.54 3.31 1.46 4.61L4.5 19.5l2.89-.96A7.95 7.95 0 0 0 12 20a8 8 0 0 0 8-8 8 8 0 0 0-8-8z" />
+                            </svg>
+                            Share
+                        </button>
+                    </div>
+                </div>
+                <div id="invoice-preview" class="invoice">
+                    <!-- invoice content generated dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="wa-modal" style="z-index: 230;">
+        <div class="wa-modal-panel">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <h4 style="margin:0;">Share Invoice</h4>
+                <button class="ghost ripple" onclick="closeWAModal()">Close</button>
+            </div>
+            <div style="margin-top:6px;color:var(--text-secondary);font-size:13px">
+                Enter recipient's 10-digit phone number.
+            </div>
+            <input id="wa-phone-input" style="margin-top:8px;" placeholder="10-digit phone number" maxlength="10"
+                inputmode="numeric" oninput="filterPhone(this)" />
+            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+                <button class="ghost ripple" onclick="closeWAModal()">Cancel</button>
+                <button class="primary ripple" id="wa-send-btn" onclick="sendPdfToWhatsapp()">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="white">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                    </svg>
+                    Send PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="quick-report-modal" style="z-index: 225;">
+        <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <h4 style="margin:0;">Experience it now</h4>
+                <button class="ghost ripple" onclick="closeQuickReport()">Close</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px; margin-top: 12px;">
+                <button class="primary ripple" onclick="openTypeInvoiceModal()">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="white">
+                        <path
+                            d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
+                    </svg>
+                    Click to generate invoice
+                </button>
+            </div>
+            <div id="quick-report-result" style="margin-top:12px;color:var(--text-secondary);font-size:14px"></div>
+        </div>
+    </div>
+
+    <div id="food-order-modal" style="z-index: 225;">
+        <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <h4 style="margin:0;">Online Food Portals</h4>
+                <button class="ghost ripple" onclick="closeFoodOrder()">Close</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px; margin-top: 12px;">
+                <button class="ghost ripple" onclick="window.openZomato()">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                    </svg>
+                    Zomato
+                </button>
+                <button class="ghost ripple" onclick="window.openSwiggy()">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                    </svg>
+                    Swiggy
+                </button>
+            </div>
+            <div id="food-order-result" style="margin-top:12px;color:var(--text-secondary);font-size:14px"></div>
+        </div>
+    </div>
+
+    <div id="login-modal" aria-hidden="true" style="z-index: 300;">
+        <div class="login-panel" role="dialog" aria-label="Login">
+            <h2>Welcome Back</h2>
+            <p>Please sign in to access the application.</p>
+            <div style="display:flex; flex-direction:column; gap: 12px; margin-top: 16px;">
+                <div>
+                    <label for="login-username" style="font-size:13px;color:var(--text-secondary)">Username</label>
+                    <input id="login-username" placeholder="Enter username" autocomplete="username"
+                        style="margin-top: 4px;" />
+                </div>
+                <div>
+                    <label for="login-password" style="font-size:13px;color:var(--text-secondary)">Password</label>
+                    <input id="login-password" type="password" placeholder="Enter password"
+                        autocomplete="current-password" style="margin-top: 4px;" />
+                </div>
+            </div>
+            <div class="login-actions">
+                <button class="ghost ripple" onclick="clearLoginInputs()">Clear</button>
+                <button class="primary ripple" onclick="attemptLogin()">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="white">
+                        <path d="M10 17l5-5-5-5v10z" />
+                    </svg>
+                    Login
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="logout-modal" aria-hidden="true" style="z-index: 310;">
+        <div class="logout-panel">
+            <h3 style="margin:0">Confirm Logout</h3>
+            <p>Do you want to logout and return to the login page?</p>
+            <div class="logout-actions">
+                <button class="ghost ripple" onclick="closeLogoutPopup()">Cancel</button>
+                <button class="primary ripple" onclick="confirmLogout()">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="white">
+                        <path
+                            d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+                    </svg>
+                    Logout
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="type-invoice-modal" style="z-index: 235;">
+        <div>
+            <div class="modal-header">
+                <h4 class="modal-title">Place Your Order</h4>
+                <button class="ghost ripple" onclick="closeTypeInvoiceModal()">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                    </svg>
+                    Close
+                </button>
+            </div>
+
+            <!-- Table Info Banner -->
+            <div id="selected-table-banner" style="display:none;" class="table-info-banner">
+                <div class="table-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="#15803d">
+                        <path
+                            d="M20 6h-2.18c.11-.31.18-.65.18-1a2.996 2.996 0 0 0-5.5-1.65l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 15H4v-2h16v2zm0-5H4V8h5.08L7 10.83 8.62 12 11 8.76l1-1.36 1 1.36L15.38 12 17 10.83 14.92 8H20v6z" />
+                    </svg>
+                </div>
+                <div class="table-info-content">
+                    <div class="table-label">Selected Table</div>
+                    <div class="table-number" id="selected-table-number">Table 1</div>
+                </div>
+                <button class="btn-table-swap" onclick="openTableSwapModal()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z" />
+                    </svg>
+                    Swap Table
+                </button>
+            </div>
+
+            <div style="margin-top:8px">
+                <div class="instruction-text">
+                    <strong>How to order:</strong> Enter items as <strong>Product Name, Quantity</strong> (one per
+                    line).
+                    <br>Example: Veg Fried Rice, 2
+                </div>
+                <textarea id="type-invoice-textarea" rows="8"
+                    placeholder="e.g. Veg Fried Rice, 2&#10;Paneer 65 (half), 1&#10;Ghee Roti, 3"
+                    style="resize:vertical"></textarea>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+                    <div style="color:var(--text-secondary);font-size:13px;font-weight:600;">
+                        Lines: <span id="type-lines-count" style="color:var(--accent);">0</span>
+                    </div>
+                </div>
+                <div id="type-validate-result" style="margin-top:12px;"></div>
+
+                <div id="type-actions-area" style="margin-top:12px;display:none">
+                    <div style="display: flex; flex-direction: column; max-width: 350px;">
+                        <input id="type-customer-name" placeholder="Customer Name (Optional)" oninput="filterName(this)"
+                            style="margin-bottom: 8px;" />
+                        <input id="type-customer-phone" placeholder="Customer Phone (Optional)"
+                            oninput="filterPhone(this)" maxlength="10" inputmode="numeric" />
+                        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+                            <button class="ghost ripple" onclick="saveDraftFromTypeInvoice()">
+                                <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path
+                                        d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z" />
+                                </svg>
+                                Save as Draft
+                            </button>
+                            <button class="primary ripple" onclick="openOrderTypeModal('typed')">
+                                <svg class="btn-icon" viewBox="0 0 24 24" fill="white">
+                                    <path
+                                        d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
+                                </svg>
+                                Generate Invoice
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="drafts-modal" style="z-index: 240;">
+        <div style="width: 720px; max-width: 95%; background: var(--card); border-radius: 12px; padding: 20px;">
+            <div class="modal-header">
+                <h4 class="modal-title">Saved Drafts</h4>
+                <button class="ghost ripple" onclick="closeDraftsModal()">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                    </svg>
+                    Close
+                </button>
+            </div>
+            <div id="drafts-list-container" style="max-height: 60vh; overflow-y: auto; padding-right: 6px;">
+                <!-- Drafts will be rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <div id="order-type-modal" style="z-index: 250;">
+        <div class="login-panel" style="width: 400px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <h4 style="margin:0;">Select Order Type</h4>
+                <button class="ghost ripple" onclick="closeOrderTypeModal()">Close</button>
+            </div>
+            <p style="font-size: 13px; color: var(--text-secondary);">Please select the type of order to proceed with
+                invoice generation.</p>
+            <div style="display:flex; flex-direction:column; gap:10px; margin-top:16px;">
+                <button class="primary ripple" onclick="confirmOrderType('Delivery')">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="white">
+                        <path
+                            d="M18 18.5a1.5 1.5 0 0 1-1.5-1.5 1.5 1.5 0 0 1 1.5-1.5 1.5 1.5 0 0 1 1.5 1.5 1.5 1.5 0 0 1-1.5 1.5m1.5-9l1.96 2.5H17V9.5m-11 9A1.5 1.5 0 0 1 4.5 17 1.5 1.5 0 0 1 6 15.5 1.5 1.5 0 0 1 7.5 17 1.5 1.5 0 0 1 6 18.5M20 8h-3V4H3c-1.11 0-2 .89-2 2v11h2a3 3 0 0 0 3 3 3 3 0 0 0 3-3h6a3 3 0 0 0 3 3 3 3 0 0 0 3-3h2v-5l-3-4z" />
+                    </svg>
+                    Delivery
+                </button>
+                <button class="primary ripple" onclick="confirmOrderType('Dine in')">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="white">
+                        <path
+                            d="M8.1 13.34l2.83-2.83L3.91 3.5a4.008 4.008 0 0 0 0 5.66l4.19 4.18zm6.78-1.81c1.53.71 3.68.21 5.27-1.38 1.91-1.91 2.28-4.65.81-6.12-1.46-1.46-4.2-1.1-6.12.81-1.59 1.59-2.09 3.74-1.38 5.27L3.7 19.87l1.41 1.41L12 14.41l6.88 6.88 1.41-1.41L13.41 13l1.47-1.47z" />
+                    </svg>
+                    Dine in
+                </button>
+                <button class="primary ripple" onclick="confirmOrderType('Take Away')">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="white">
+                        <path
+                            d="M18.06 22.99h1.66c.84 0 1.53-.64 1.63-1.46L23 5.05h-5V1h-1.97v4.05h-4.97l.3 2.34c1.71.47 3.31 1.32 4.27 2.26 1.44 1.42 2.43 2.89 2.43 5.29v8.05zM1 21.99V21h15.03v.99c0 .55-.45 1-1.01 1H2.01c-.56 0-1.01-.45-1.01-1zm15.03-7c0-8-15.03-8-15.03 0h15.03zM1.02 17h15v2h-15z" />
+                    </svg>
+                    Take Away
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="payment-type-modal" style="z-index: 260;">
+        <div class="login-panel" style="width: 400px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <h4 style="margin:0;">Select Payment Type</h4>
+                <button class="ghost ripple" onclick="closePaymentTypeModal()">Close</button>
+            </div>
+            <p style="font-size: 13px; color: var(--text-secondary);">Please select the payment method for this order.
+            </p>
+            <div style="display:flex; flex-direction:column; gap:10px; margin-top:16px;">
+                <button class="primary ripple" onclick="confirmPaymentType('Card')">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="white">
+                        <path
+                            d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
+                    </svg>
+                    Card
+                </button>
+                <button class="primary ripple" onclick="confirmPaymentType('Cash')">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="white">
+                        <path
+                            d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z" />
+                    </svg>
+                    Cash
+                </button>
+                <button class="primary ripple" onclick="confirmPaymentType('UPI')">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="white">
+                        <path
+                            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z" />
+                    </svg>
+                    UPI
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chatbot widget -->
+    <div class="business-assistant" aria-hidden="false">
+        <div class="ba-pill" title="Business Assistant">
+            <div
+                style="width:36px;height:36px;border-radius:8px;background:var(--accent-gradient);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">
+                B
+            </div>
+            <div class="ba-label">Billing Buddy</div>
+        </div>
+        <button id="ba-toggle" class="ba-btn" aria-expanded="false" aria-label="Open Business Assistant">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+                xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10z" fill="white" />
+                <circle cx="8.5" cy="10.5" r="1.25" fill="#C81E3A" />
+                <circle cx="12" cy="10.5" r="1.25" fill="#C81E3A" />
+                <circle cx="15.5" cy="10.5" r="1.25" fill="#C81E3A" />
+            </svg>
+        </button>
+
+        <div id="ba-window" class="ba-window" style="display:none;" role="dialog" aria-label="Business Assistant chat">
+            <div class="ba-header">
+                <div class="ba-head-icon">B</div>
+                <div class="ba-head-info">
+                    <div class="ba-head-title">Billing Buddy</div>
+                    <div class="ba-head-sub">Personal Assistant</div>
+                </div>
+                <button id="ba-close" class="ba-close-btn" title="Close chat">✕</button>
+            </div>
+            <div id="ba-messages" class="ba-messages" aria-live="polite"></div>
+            <div class="ba-input">
+                <input id="ba-input" type="text" placeholder="Enter your invoice here..." aria-label="Type a message" />
+                <button id="ba-send">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Up arrow button -->
+    <button id="up-arrow" title="Options" style="display:none;" onclick="showLogoutPopup()">↑</button>
+
+    <!-- External JS file -->
+    <script src="app.js"></script>
+
+    <script>
+        // Add ripple effect to buttons
+        document.addEventListener('click', function (e) {
+            if (e.target.closest('.ripple')) {
+                const button = e.target.closest('.ripple');
+                const ripple = document.createElement('span');
+                const rect = button.getBoundingClientRect();
+                const size = Math.max(rect.width, rect.height);
+                const x = e.clientX - rect.left - size / 2;
+                const y = e.clientY - rect.top - size / 2;
+
+                ripple.style.width = ripple.style.height = size + 'px';
+                ripple.style.left = x + 'px';
+                ripple.style.top = y + 'px';
+                ripple.classList.add('ripple-effect');
+
+                button.appendChild(ripple);
+
+                setTimeout(() => ripple.remove(), 600);
+            }
+        });
+    </script>
+
+    <!-- Enhanced Table Selection Modal -->
+    <div id="table-selection-modal" style="z-index: 240;">
+        <div
+            style="width: 900px; max-width: 95%; background: var(--card); border-radius: 16px; padding: 24px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+                <div>
+                    <h3 style="margin:0; font-size: 24px;">Select Table</h3>
+                    <p style="color: var(--text-secondary); font-size: 14px; margin: 4px 0 0 0;">
+                        Choose an available table to place your order
+                    </p>
+                </div>
+                <button class="ghost ripple" onclick="closeTableSelectionModal()">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                    </svg>
+                    Close
+                </button>
+            </div>
+
+            <!-- Legend -->
+            <div class="table-legend">
+                <div class="legend-item">
+                    <div class="legend-color available"></div>
+                    <span>Available</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color occupied"></div>
+                    <span>Occupied</span>
+                </div>
+            </div>
+
+            <div id="table-selection-grid" class="table-grid">
+                <!-- Tables will be rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Sales Modal -->
+    <div id="product-sales-modal" style="z-index: 245;">
+        <div
+            style="width: 720px; max-width: 95%; background: var(--card); border-radius: 12px; padding: 20px; max-height: 90vh; overflow-y: auto;">
+            <div
+                style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid var(--border-color);">
+                <div>
+                    <h3 style="margin:0; font-size: 22px;">Product Sales Statistics</h3>
+                    <p style="color: var(--text-secondary); font-size: 13px; margin: 4px 0 0 0;">
+                        View sales performance for each product
+                    </p>
+                </div>
+                <button class="ghost ripple" onclick="closeProductSalesModal()">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                    </svg>
+                    Close
+                </button>
+            </div>
+            <div id="product-sales-content">
+                <!-- Product sales will be rendered here -->
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
